@@ -33,10 +33,15 @@ export const authorizeWarehouseAccess = async (req: Request, res: Response, next
       }
       (req as any).allowedWarehouseId = requestedWarehouseId;
     } else {
-      if (assignedIds.length === 0) {
-        return res.status(403).json({ error: 'Forbidden: No assigned warehouses' });
+      // If Admin and no specific warehouse requested, let them see all (undefined allowedWarehouseId)
+      if (user?.role?.name === 'Admin') {
+        (req as any).allowedWarehouseId = undefined;
+      } else {
+        if (assignedIds.length === 0) {
+          return res.status(403).json({ error: 'Forbidden: No assigned warehouses' });
+        }
+        (req as any).allowedWarehouseId = assignedIds[0];
       }
-      (req as any).allowedWarehouseId = assignedIds[0];
     }
 
     next();

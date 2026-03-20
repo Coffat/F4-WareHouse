@@ -110,6 +110,7 @@ class ProductService {
         category_id: row?.category_id ?? 0,
         product_count: row?.product_count ?? 0,
         total_quantity: row?.total_quantity ?? 0,
+        sold_count: row?.sold_count ?? 0,
       };
     };
 

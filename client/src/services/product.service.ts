@@ -30,9 +30,9 @@ export interface ApiProduct {
 }
 
 export interface ApiProductStats {
-  phones: { category_name: string; category_id: number; product_count: number; total_quantity: number };
-  laptops: { category_name: string; category_id: number; product_count: number; total_quantity: number };
-  accessories: { category_name: string; category_id: number; product_count: number; total_quantity: number };
+  phones: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
+  laptops: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
+  accessories: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
   total_products: number;
   total_quantity: number;
 }

@@ -114,6 +114,7 @@ export interface CategoryStatsDto {
   category_id: number;
   product_count: number;
   total_quantity: number;
+  sold_count: number;
 }
 
 export interface ProductStatsDto {

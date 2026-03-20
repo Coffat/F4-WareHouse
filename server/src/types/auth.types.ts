@@ -48,7 +48,7 @@ export interface LoginResponseDto {
 // Role Constants - Tập trung quản lý tên role
 // =============================================
 export enum RoleName {
-  OWNER = "Owner",
+  OWNER = "Admin",
   MANAGER = "Manager",
   STAFF = "Warehouse Staff",
 }

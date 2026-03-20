@@ -194,28 +194,35 @@ class ProductRepository {
               },
               select: { quantity: true },
             },
+            product_items: {
+              where: {
+                status: 'SOLD',
+                ...(warehouseId ? { warehouse_id: warehouseId } : {}),
+              },
+              select: { id: true }
+            }
           },
         },
       },
     });
 
-    return categories.map((cat: {
-      id: number;
-      name: string;
-      products: Array<{
-        id: number;
-        inventory: Array<{ quantity: number }>;
-      }>;
-    }) => ({
-      category_id: cat.id,
-      category_name: cat.name,
-      product_count: cat.products.length,
-      total_quantity: cat.products.reduce(
-        (sum: number, p: { id: number; inventory: Array<{ quantity: number }> }) =>
-          sum + p.inventory.reduce((s: number, inv: { quantity: number }) => s + inv.quantity, 0),
-        0
-      ),
-    }));
+    return categories.map((cat: any) => {
+      const activeProducts = cat.products.filter((p: any) => p.inventory.length > 0 || p.product_items.length > 0);
+      return {
+        category_id: cat.id,
+        category_name: cat.name,
+        product_count: activeProducts.length,
+        total_quantity: activeProducts.reduce(
+          (sum: number, p: any) =>
+            sum + p.inventory.reduce((s: number, inv: any) => s + inv.quantity, 0),
+          0
+        ),
+        sold_count: cat.products.reduce(
+          (sum: number, p: any) => sum + p.product_items.length,
+          0
+        )
+      };
+    });
   }
 
   /**

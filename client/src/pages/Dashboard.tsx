@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Bar,
@@ -29,6 +29,8 @@ import {
 } from 'lucide-react'
 
 import { useDashboardData } from '../hooks/useDashboardData'
+import WarehouseModal from '../components/common/WarehouseModal'
+import { useWarehouseStore } from '../store/useWarehouseStore'
 
 // ─────────────────────────────────────────────
 // Types
@@ -314,7 +316,16 @@ function ProductStockCard({
 // MAIN DASHBOARD
 // ─────────────────────────────────────────────
 export default function Dashboard() {
-  const { stats, healthSpeed, healthDefect, activities, alerts, loading } = useDashboardData()
+  const { availableWarehouses, selectedWarehouseId } = useWarehouseStore()
+  const { stats, healthSpeed, healthDefect, activities, alerts, loading } = useDashboardData(selectedWarehouseId || undefined)
+  const [warehouseModal, setWarehouseModal] = useState<{ open: boolean; tab: 'select' | 'create' }>({ open: false, tab: 'select' })
+
+  const currentWarehouseName = useMemo(() => {
+    if (selectedWarehouseId === null) return 'Tất cả chi nhánh'
+    const found = availableWarehouses.find(w => w.id === selectedWarehouseId)
+    if (found) return found.name
+    return loading ? 'Đang xác định...' : 'Kho không tồn tại'
+  }, [selectedWarehouseId, availableWarehouses, loading])
 
   const chartData = useMemo(() => [
       { day: 'T2', v: 38, fill: 'rgba(178,242,187,0.55)' },
@@ -408,7 +419,7 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-500">
                   Theo dõi vận hành thời gian thực tại{' '}
                   <span className="font-semibold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full">
-                    Khu A-12
+                    {currentWarehouseName}
                   </span>
                 </p>
               </div>
@@ -423,14 +434,16 @@ export default function Dashboard() {
                     placeholder="Tìm kiếm nhanh..."
                   />
                 </div>
-                <PillButton className="bg-pink-clay/50 text-slate-800" iconBg="bg-pink-clay" icon={<Home className="w-3.5 h-3.5 text-rose-600" />}>
+                <PillButton 
+                  onClick={() => setWarehouseModal({ open: true, tab: 'select' })}
+                  className="bg-pink-clay/50 text-slate-800" iconBg="bg-pink-clay" icon={<Home className="w-3.5 h-3.5 text-rose-600" />}>
                   Chọn Kho
                 </PillButton>
-                <Link to="/products">
-                  <PillButton className="bg-mint-clay/60 text-slate-800" iconBg="bg-mint-clay" icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}>
-                    Nhập Kho Mới
-                  </PillButton>
-                </Link>
+                <PillButton 
+                  onClick={() => setWarehouseModal({ open: true, tab: 'create' })}
+                  className="bg-mint-clay/60 text-slate-800" iconBg="bg-mint-clay" icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}>
+                  Nhập Kho Mới
+                </PillButton>
                 <button
                   className="relative w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95"
                   style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
@@ -552,11 +565,15 @@ export default function Dashboard() {
                     >
                       <Truck className="w-5 h-5 text-slate-700 animate-float" />
                     </div>
-                    <p className="text-[32px] font-bold text-slate-900 leading-none">12</p>
+                    <p className="text-[32px] font-bold text-slate-900 leading-none">
+                      {stats?.inboundPending ?? '0'}
+                    </p>
                   </div>
                   <div className="mt-4">
                     <p className="text-[14px] font-bold text-slate-900">Hàng Đang Về</p>
-                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">Lô hàng sẽ đến trong 2 giờ tới</p>
+                    <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
+                      {stats?.inboundPending > 0 ? `Có ${stats.inboundPending} lô hàng đang chờ nhập` : 'Hiện không có lô hàng nào đang về'}
+                    </p>
                   </div>
                 </div>
 
@@ -572,14 +589,24 @@ export default function Dashboard() {
                     >
                       <Warehouse className="w-5 h-5 text-slate-700" />
                     </div>
-                    <p className="text-[24px] font-bold text-purple-600 leading-none">88%</p>
+                    <p className="text-[24px] font-bold text-purple-600 leading-none">
+                      {stats?.storageDensity?.value || '0%'}
+                    </p>
                   </div>
                   <div className="mt-3">
                     <p className="text-[13px] font-bold text-slate-900">Mật độ Lưu trữ</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Mật độ cao tại Dãy-F</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {stats?.storageDensity?.details?.density > 90 
+                        ? 'Cảnh báo: Sắp hết sức chứa' 
+                        : `Sử dụng ${stats?.storageDensity?.details?.totalQuantity || 0}/${stats?.storageDensity?.details?.totalCapacity || 0}`}
+                    </p>
                   </div>
                   <div className="mt-3">
-                    <ProgressBar value={88} colorClass="bg-purple-400" height="h-2.5" />
+                    <ProgressBar 
+                      value={stats?.storageDensity?.details?.density || 0} 
+                      colorClass={stats?.storageDensity?.details?.density > 90 ? 'bg-pink-clay' : 'bg-purple-400'} 
+                      height="h-2.5" 
+                    />
                   </div>
                   <button
                     className="mt-3 w-full rounded-full bg-slate-900 text-white text-[12px] font-semibold py-2.5 flex items-center justify-center gap-1.5 transition-all active:scale-95"
@@ -605,7 +632,7 @@ export default function Dashboard() {
                   progressColor="bg-lilac-clay"
                   progressValue={stats?.categoryStock?.['Điện thoại'] ? (stats.categoryStock['Điện thoại'] / stats.totalStock) * 100 : 0}
                   stockCount={stats?.categoryStock?.['Điện thoại'] || '0'}
-                  soldCount="-"
+                  soldCount={stats?.categorySold?.['Điện thoại'] || '0'}
                   note="Tồn kho thời gian thực"
                 />
               </div>
@@ -618,7 +645,7 @@ export default function Dashboard() {
                   progressColor="bg-mint-clay"
                   progressValue={stats?.categoryStock?.['Laptop'] ? (stats.categoryStock['Laptop'] / stats.totalStock) * 100 : 0}
                   stockCount={stats?.categoryStock?.['Laptop'] || '0'}
-                  soldCount="-"
+                  soldCount={stats?.categorySold?.['Laptop'] || '0'}
                   note="Tồn kho thời gian thực"
                 />
               </div>
@@ -631,7 +658,7 @@ export default function Dashboard() {
                   progressColor="bg-pink-clay"
                   progressValue={stats?.categoryStock?.['Phụ kiện'] ? (stats.categoryStock['Phụ kiện'] / stats.totalStock) * 100 : 0}
                   stockCount={stats?.categoryStock?.['Phụ kiện'] || '0'}
-                  soldCount="-"
+                  soldCount={stats?.categorySold?.['Phụ kiện'] || '0'}
                   note="Tồn kho thời gian thực"
                 />
               </div>
@@ -673,6 +700,12 @@ export default function Dashboard() {
           </main>
         </div>
       </div>
+
+      <WarehouseModal 
+        isOpen={warehouseModal.open} 
+        onClose={() => setWarehouseModal(prev => ({ ...prev, open: false }))} 
+        defaultTab={warehouseModal.tab} 
+      />
     </div>
   )
 }

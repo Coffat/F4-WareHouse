@@ -770,6 +770,9 @@ interface ProductManagementViewProps {
   onDeleteConfirm: () => void
   onToastClose: () => void
   onRefresh: () => void
+  selectedWarehouseId: number | null
+  onOpenWarehouseModal: () => void
+  availableWarehouses: { id: number; name: string }[]
 }
 
 function ProductManagementView({
@@ -778,6 +781,7 @@ function ProductManagementView({
   activeCategory, searchQuery,
   onCategoryChange, onSearchChange, onOpenAdd, onEdit, onDelete,
   onModalClose, onModalSave, onDeleteClose, onDeleteConfirm, onToastClose, onRefresh,
+  selectedWarehouseId, onOpenWarehouseModal, availableWarehouses
 }: ProductManagementViewProps) {
   const categories: CategoryFilter[] = ['Tất cả', 'Điện thoại', 'Laptop', 'Phụ kiện']
 
@@ -838,7 +842,10 @@ function ProductManagementView({
                   </span>
                 </h1>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  Tổng tồn kho: {stats?.total_quantity ?? '—'} đơn vị
+                  Tổng tồn kho: {stats?.total_quantity ?? '—'} đơn vị tại{' '}
+                  <span className="font-semibold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full">
+                    {selectedWarehouseId === null ? 'Tất cả chi nhánh' : (availableWarehouses.find(w => w.id === selectedWarehouseId)?.name || 'Đang tải...')}
+                  </span>
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -854,6 +861,16 @@ function ProductManagementView({
                     onChange={(e) => onSearchChange(e.target.value)}
                   />
                 </div>
+                <button
+                  onClick={onOpenWarehouseModal}
+                  className="h-10 rounded-full px-4 text-[13px] font-semibold inline-flex items-center gap-2 transition-all active:scale-95 bg-pink-clay/50 text-slate-800"
+                  style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 10px 14px 28px rgba(17,24,39,0.12)' }}
+                >
+                  <span className="w-6 h-6 rounded-full inline-flex items-center justify-center bg-pink-clay" style={{ boxShadow: '-3px -3px 6px rgba(255,255,255,0.9), 4px 4px 10px rgba(17,24,39,0.1)' }}>
+                    <Warehouse className="w-3.5 h-3.5 text-rose-600" />
+                  </span>
+                  Chọn Kho
+                </button>
                 <button
                   onClick={onRefresh}
                   className="w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:-translate-y-0.5"
@@ -884,7 +901,7 @@ function ProductManagementView({
               <StatCard
                 label="Điện thoại"
                 value={stats?.phones.product_count ?? 0}
-                sub={`${stats?.phones.total_quantity ?? 0} máy tồn kho`}
+                sub={`${stats?.phones.total_quantity ?? 0} máy tồn · ${stats?.phones.sold_count ?? 0} đã bán`}
                 color="bg-pink-clay/30"
                 icon={<Smartphone className="w-5 h-5 text-rose-500" />}
                 loading={loadingStats}
@@ -892,7 +909,7 @@ function ProductManagementView({
               <StatCard
                 label="Laptop"
                 value={stats?.laptops.product_count ?? 0}
-                sub={`${stats?.laptops.total_quantity ?? 0} máy tồn kho`}
+                sub={`${stats?.laptops.total_quantity ?? 0} máy tồn · ${stats?.laptops.sold_count ?? 0} đã bán`}
                 color="bg-mint-clay/30"
                 icon={<Laptop className="w-5 h-5 text-emerald-600" />}
                 loading={loadingStats}
@@ -900,9 +917,9 @@ function ProductManagementView({
               <StatCard
                 label="Phụ kiện"
                 value={stats?.accessories.product_count ?? 0}
-                sub={`${stats?.accessories.total_quantity ?? 0} đơn vị tồn kho`}
-                color="bg-lilac-clay/30"
-                icon={<Headphones className="w-5 h-5 text-violet-500" />}
+                sub={`${stats?.accessories.total_quantity ?? 0} tồn · ${stats?.accessories.sold_count ?? 0} đã bán`}
+                color="bg-peach-clay/30"
+                icon={<Headphones className="w-5 h-5 text-orange-500" />}
                 loading={loadingStats}
               />
             </div>
@@ -1007,18 +1024,21 @@ function ProductManagementView({
 // CONTAINER — Xử lý data fetching + business logic
 // (H2: Container/Presenter Pattern)
 // ─────────────────────────────────────────────
+import WarehouseModal from '../components/common/WarehouseModal'
+
 export default function ProductManagement() {
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('Tất cả')
   const [searchQuery, setSearchQuery] = useState('')
   const [formOptions, setFormOptions] = useState<FormOptions | null>(null)
   const [modal, setModal] = useState<ModalState>({ open: false, mode: 'add', productId: null })
+  const [warehouseModal, setWarehouseModal] = useState<{ open: boolean; tab: 'select' | 'create' }>({ open: false, tab: 'select' })
   const [deleteTarget, setDeleteTarget] = useState<UIProduct | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
 
   // Lấy warehouse context từ global store (S1)
-  const { selectedWarehouseId } = useWarehouseStore()
+  const { selectedWarehouseId, availableWarehouses } = useWarehouseStore()
 
   // Xác định category_id từ activeCategory filter
   const categoryId = useMemo(() => {
@@ -1116,31 +1136,42 @@ export default function ProductManagement() {
   }, [deleteTarget, refetchProducts, refetchStats])
 
   return (
-    <ProductManagementView
-      products={products}
-      stats={stats}
-      formOptions={formOptions}
-      modal={modal}
-      deleteTarget={deleteTarget}
-      loadingProducts={loadingProducts}
-      loadingStats={loadingStats}
-      saving={saving}
-      deleting={deleting}
-      toast={toast}
-      error={error}
-      activeCategory={activeCategory}
-      searchQuery={searchQuery}
-      onCategoryChange={setActiveCategory}
-      onSearchChange={setSearchQuery}
-      onOpenAdd={() => setModal({ open: true, mode: 'add', productId: null })}
-      onEdit={() => setModal({ open: true, mode: 'add', productId: null })}
-      onDelete={handleDelete}
-      onModalClose={() => setModal({ open: false, mode: 'add', productId: null })}
-      onModalSave={handleSave}
-      onDeleteClose={() => setDeleteTarget(null)}
-      onDeleteConfirm={confirmDelete}
-      onToastClose={() => setToast(null)}
-      onRefresh={handleRefresh}
-    />
+    <>
+      <ProductManagementView
+        products={products}
+        stats={stats}
+        formOptions={formOptions}
+        modal={modal}
+        deleteTarget={deleteTarget}
+        loadingProducts={loadingProducts}
+        loadingStats={loadingStats}
+        saving={saving}
+        deleting={deleting}
+        toast={toast}
+        error={error}
+        activeCategory={activeCategory}
+        searchQuery={searchQuery}
+        selectedWarehouseId={selectedWarehouseId}
+        availableWarehouses={availableWarehouses}
+        onCategoryChange={setActiveCategory}
+        onSearchChange={setSearchQuery}
+        onOpenAdd={() => setModal({ open: true, mode: 'add', productId: null })}
+        onEdit={() => setModal({ open: true, mode: 'add', productId: null })}
+        onDelete={handleDelete}
+        onModalClose={() => setModal({ open: false, mode: 'add', productId: null })}
+        onModalSave={handleSave}
+        onDeleteClose={() => setDeleteTarget(null)}
+        onDeleteConfirm={confirmDelete}
+        onToastClose={() => setToast(null)}
+        onRefresh={handleRefresh}
+        onOpenWarehouseModal={() => setWarehouseModal({ open: true, tab: 'select' })}
+      />
+
+      <WarehouseModal
+        isOpen={warehouseModal.open}
+        defaultTab={warehouseModal.tab}
+        onClose={() => setWarehouseModal({ ...warehouseModal, open: false })}
+      />
+    </>
   )
 }

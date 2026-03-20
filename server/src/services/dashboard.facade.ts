@@ -1,6 +1,6 @@
 import { db } from '../utils/database';
-import { HealthCalculationStrategy, DefectRateStrategy, ProcessSpeedStrategy } from './dashboard.strategy';
-import { InventoryStatus } from '@prisma/client';
+import { HealthCalculationStrategy, DefectRateStrategy, ProcessSpeedStrategy, StorageDensityStrategy } from './dashboard.strategy';
+import { InventoryStatus, TransactionType, TransactionStatus } from '@prisma/client';
 
 export class DashboardFacade {
   
@@ -17,7 +17,7 @@ export class DashboardFacade {
 
     const inventoryAgg = await db.inventory.aggregate({
       _sum: { quantity: true },
-      where: filter
+      where: { ...filter, status: InventoryStatus.READY_TO_SELL }
     });
     const totalStock = inventoryAgg._sum.quantity || 0;
     
@@ -28,7 +28,7 @@ export class DashboardFacade {
     const defective = defectiveAgg._sum.quantity || 0;
 
     const inventoryByCategoryRaw = await db.inventory.findMany({
-      where: filter,
+      where: { ...filter, status: InventoryStatus.READY_TO_SELL },
       include: {
         product: { select: { category: { select: { name: true } } } }
       }
@@ -42,19 +42,56 @@ export class DashboardFacade {
       }
     }
 
+    // New: Count Pending Inbound Transactions
+    const inboundPending = await db.transaction.count({
+      where: {
+        ...(warehouseId ? { dest_warehouse_id: warehouseId } : {}),
+        type: TransactionType.INBOUND,
+        status: TransactionStatus.PENDING
+      }
+    });
+
+    // New: Count Sold Items by Category
+    const soldByCategoryRaw = await db.productItem.findMany({
+      where: {
+        ...(warehouseId ? { warehouse_id: warehouseId } : {}),
+        status: 'SOLD'
+      },
+      include: {
+        product: { select: { category: { select: { name: true } } } }
+      }
+    });
+
+    const categorySold: Record<string, number> = {};
+    for (const item of soldByCategoryRaw) {
+      const cname = item.product?.category?.name;
+      if (cname) {
+        categorySold[cname] = (categorySold[cname] || 0) + 1;
+      }
+    }
+
+    // New: Calculate Storage Density using Strategy
+    const storageDensityStrategy = new StorageDensityStrategy();
+    const densityResult = await storageDensityStrategy.calculateHealth(warehouseId);
+
     return {
       totalProducts,
       totalStock,
       defective,
       readyToSell: totalStock - defective,
-      categoryStock
+      categoryStock,
+      categorySold,
+      inboundPending,
+      storageDensity: densityResult
     };
   }
 
-  public async getHealth(warehouseId?: number, strategyType: 'speed' | 'defect' = 'defect') {
+  public async getHealth(warehouseId?: number, strategyType: 'speed' | 'defect' | 'density' = 'defect') {
     let strategy: HealthCalculationStrategy;
     if (strategyType === 'speed') {
       strategy = new ProcessSpeedStrategy();
+    } else if (strategyType === 'density') {
+      strategy = new StorageDensityStrategy();
     } else {
       strategy = new DefectRateStrategy();
     }
