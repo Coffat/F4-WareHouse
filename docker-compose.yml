@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: wms-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wms_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    networks:
+      - wms-network
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: wms-server
+    restart: always
+    depends_on:
+      - db
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=mysql://user:password@db:3306/wms_db
+      - JWT_SECRET=wms-super-secret-jwt-key-change-this-in-production-2026
+      - JWT_EXPIRES_IN=7d
+      - CLIENT_URL=http://localhost:80
+    ports:
+      - "3000:3000"
+    networks:
+      - wms-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: wms-client
+    restart: always
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+    networks:
+      - wms-network
+
+volumes:
+  mysql_data:
+
+networks:
+  wms-network:
+    driver: bridge

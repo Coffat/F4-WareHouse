@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Fredoka', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  background-color: #FDFBF7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Floating animation for product icons */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(-2deg); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float-delayed 3.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.1);
+  border-radius: 999px;
+}
+
+/* Progress bar shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.progress-shimmer {
+  background-size: 200% auto;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* Modal backdrop fade */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(32px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+.modal-backdrop {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.modal-panel {
+  animation: slideUp 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Tag pulse glow */
+@keyframes tagPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(178,242,187,0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(178,242,187,0); }
+}
+
+.tag-pulse {
+  animation: tagPulse 2.5s ease-in-out infinite;
+}
+
+/* Squishy card hover lift */
+.clay-product-card {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.2s ease;
+}
+.clay-product-card:hover {
+  transform: translateY(-4px);
+}
