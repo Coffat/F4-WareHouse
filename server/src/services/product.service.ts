@@ -108,7 +108,7 @@ class ProductService {
       return {
         category_name: row?.category_name ?? categoryName,
         category_id: row?.category_id ?? 0,
-        product_count: row?.product_count ?? 0,
+        model_count: row?.model_count ?? 0,    // Updated from product_count
         total_quantity: row?.total_quantity ?? 0,
         sold_count: row?.sold_count ?? 0,
       };
@@ -116,14 +116,14 @@ class ProductService {
 
     // Map từng category theo vị trí trong Factory (Phone=0, Laptop=1, Accessory=2)
     const [phoneName, laptopName, accessoryName] = supportedCategories;
-    const phones = find(phoneName ?? 'Diện thoại');
+    const phones = find(phoneName ?? 'Điện thoại');
     const laptops = find(laptopName ?? 'Laptop');
     const accessories = find(accessoryName ?? 'Phụ kiện');
 
-    const total_products = rawStats.reduce((s, r) => s + r.product_count, 0);
+    const total_models = rawStats.reduce((s, r) => s + r.model_count, 0); // Rename from total_products
     const total_quantity = rawStats.reduce((s, r) => s + r.total_quantity, 0);
 
-    return { phones, laptops, accessories, total_products, total_quantity };
+    return { phones, laptops, accessories, total_models, total_quantity };
   }
 
   /**
@@ -131,15 +131,13 @@ class ProductService {
    */
   async getFormOptions(): Promise<{
     categories: Array<{ id: number; name: string; parent_id: number | null }>;
-    suppliers: Array<{ id: number; company_name: string }>;
     warehouses: Array<{ id: number; name: string }>;
   }> {
-    const [categories, suppliers, warehouses] = await Promise.all([
+    const [categories, warehouses] = await Promise.all([
       productRepository.findAllCategories(),
-      productRepository.findAllSuppliers(),
       productRepository.findAllWarehouses(),
     ]);
-    return { categories, suppliers, warehouses };
+    return { categories, warehouses };
   }
 }
 

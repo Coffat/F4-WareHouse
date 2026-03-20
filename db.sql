@@ -62,14 +62,12 @@ CREATE TABLE suppliers (
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     category_id INT,
-    supplier_id INT,
     name VARCHAR(200) NOT NULL, -- Tên sản phẩm [cite: 41]
     sku VARCHAR(100) UNIQUE NOT NULL, -- Mã SKU định danh dòng sản phẩm [cite: 41]
     image_url VARCHAR(255), -- Hình ảnh [cite: 41]
     specifications JSON, -- Trường JSON linh hoạt lưu RAM, CPU, Pin, v.v. [cite: 42]
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (category_id) REFERENCES categories(id),
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+    FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
 -- =========================================================================

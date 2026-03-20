@@ -51,7 +51,6 @@ interface UIProduct {
   iconColor: string
   cardBg: string
   categoryId: number | null
-  supplierId: number | null
   imageUrl: string | null
 }
 
@@ -59,9 +58,9 @@ interface ModalForm {
   name: string
   sku: string
   category_id: number
-  supplier_id: number | undefined
   image_url: string
-  warehouse_id: number
+  // warehouse_id và supplier_id đã được loại bỏ.
+  // Model là Master Data, Supplier sẽ được chọn khi Nhập kho.
   specs: ProductSpec
 }
 
@@ -129,7 +128,6 @@ function mapApiProductToUI(p: ApiProduct): UIProduct {
     iconColor: iconColorMap[categoryName] ?? 'text-slate-600',
     cardBg: cardBgMap[categoryName] ?? 'bg-sky-clay/40',
     categoryId: p.category?.id ?? null,
-    supplierId: p.supplier?.id ?? null,
     imageUrl: p.image_url,
   }
 }
@@ -572,32 +570,36 @@ function ClayModal({ state, formOptions, onClose, onSave, saving }: {
   saving: boolean
 }) {
   const firstCatId = formOptions?.categories[0]?.id ?? 1
-  const firstWhId = formOptions?.warehouses[0]?.id ?? 1
 
   const [form, setForm] = useState<ModalForm>({
-    name: '', sku: '', category_id: firstCatId, supplier_id: undefined,
-    image_url: '', warehouse_id: firstWhId, specs: {},
+    name: '', sku: '', category_id: firstCatId,
+    image_url: '', specs: {},
   })
 
   useEffect(() => {
     if (state.open) {
       setForm({
-        name: '', sku: '', category_id: firstCatId, supplier_id: undefined,
-        image_url: '', warehouse_id: firstWhId, specs: {},
+        name: '', sku: '', category_id: firstCatId,
+        image_url: '', specs: {},
       })
     }
-  }, [state.open, firstCatId, firstWhId])
+  }, [state.open, firstCatId])
 
+  // Strategy Pattern (FE): tra cứu parent category nếu là subcategory — giống H1 fix trên BE
   const selectedCategory = formOptions?.categories.find((c) => c.id === form.category_id)
-  const categoryName = selectedCategory?.name ?? 'Điện thoại'
-  const specFields = SPEC_FIELDS[categoryName] ?? SPEC_FIELDS['Phụ kiện']
+  let categoryName = selectedCategory?.name ?? 'Phụ kiện'
+  if (!SPEC_FIELDS[categoryName] && selectedCategory?.parent_id != null) {
+    const parentCat = formOptions?.categories.find((c) => c.id === selectedCategory.parent_id)
+    if (parentCat && SPEC_FIELDS[parentCat.name]) categoryName = parentCat.name
+  }
+  const specFields = SPEC_FIELDS[categoryName] ?? SPEC_FIELDS['Phụ kiện'] ?? []
 
   const setSpec = (key: string, val: string) =>
     setForm((prev) => ({ ...prev, specs: { ...prev.specs, [key]: val } }))
 
   return (
     <ModalComponent onClose={onClose} saving={saving}>
-      <ModalComponent.Header title="✦ Thêm Sản Phẩm Mới" subtitle="Thêm mới" />
+      <ModalComponent.Header title="✦ Đăng ký Model Mới" subtitle="Master Data" />
       <ModalComponent.Body>
         <ClayInput required label="Tên sản phẩm" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Ví dụ: iPhone 15 Pro Max" />
 
@@ -614,27 +616,8 @@ function ClayModal({ state, formOptions, onClose, onSave, saving }: {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {formOptions && (
-            <ClaySelect<number>
-              label="Nhà cung cấp"
-              value={form.supplier_id ?? 0}
-              onChange={(v) => setForm((f) => ({ ...f, supplier_id: v === 0 ? undefined : v }))}
-              options={[
-                { value: 0, label: '— Không có —' },
-                ...formOptions.suppliers.map((s) => ({ value: s.id, label: s.company_name })),
-              ]}
-            />
-          )}
-          {formOptions && (
-            <ClaySelect<number>
-              required
-              label="Kho khởi tạo"
-              value={form.warehouse_id}
-              onChange={(v) => setForm((f) => ({ ...f, warehouse_id: v }))}
-              options={formOptions.warehouses.map((w) => ({ value: w.id, label: w.name }))}
-            />
-          )}
+        <div className="grid grid-cols-1 gap-3">
+          <ClayInput label="URL ảnh" value={form.image_url} onChange={(v) => setForm((f) => ({ ...f, image_url: v }))} placeholder="https://..." />
         </div>
 
         {/* Dynamic JSON Spec Fields (Strategy Pattern) */}
@@ -658,7 +641,7 @@ function ClayModal({ state, formOptions, onClose, onSave, saving }: {
           </div>
         </div>
       </ModalComponent.Body>
-      <ModalComponent.Footer onSave={() => onSave(form)} />
+      <ModalComponent.Footer onSave={() => onSave(form)} saveLabel="✦ Đăng ký Model" />
     </ModalComponent>
   )
 }
@@ -838,7 +821,7 @@ function ProductManagementView({
                 <h1 className="text-2xl font-bold text-slate-900 mt-1">
                   Quản lý Sản phẩm{' '}
                   <span className="text-emerald-600 bg-mint-clay/40 px-3 py-0.5 rounded-full text-lg">
-                    {stats ? `${stats.total_products} SKU` : '—'}
+                    {stats ? `${stats.total_models} Models` : '—'}
                   </span>
                 </h1>
                 <p className="text-sm text-slate-500 mt-0.5">
@@ -900,7 +883,7 @@ function ProductManagementView({
             <div className="grid grid-cols-3 gap-4 mb-6">
               <StatCard
                 label="Điện thoại"
-                value={stats?.phones.product_count ?? 0}
+                value={stats?.phones.model_count ?? 0}
                 sub={`${stats?.phones.total_quantity ?? 0} máy tồn · ${stats?.phones.sold_count ?? 0} đã bán`}
                 color="bg-pink-clay/30"
                 icon={<Smartphone className="w-5 h-5 text-rose-500" />}
@@ -908,7 +891,7 @@ function ProductManagementView({
               />
               <StatCard
                 label="Laptop"
-                value={stats?.laptops.product_count ?? 0}
+                value={stats?.laptops.model_count ?? 0}
                 sub={`${stats?.laptops.total_quantity ?? 0} máy tồn · ${stats?.laptops.sold_count ?? 0} đã bán`}
                 color="bg-mint-clay/30"
                 icon={<Laptop className="w-5 h-5 text-emerald-600" />}
@@ -916,7 +899,7 @@ function ProductManagementView({
               />
               <StatCard
                 label="Phụ kiện"
-                value={stats?.accessories.product_count ?? 0}
+                value={stats?.accessories.model_count ?? 0}
                 sub={`${stats?.accessories.total_quantity ?? 0} tồn · ${stats?.accessories.sold_count ?? 0} đã bán`}
                 color="bg-peach-clay/30"
                 icon={<Headphones className="w-5 h-5 text-orange-500" />}
@@ -1094,14 +1077,13 @@ export default function ProductManagement() {
         name: form.name.trim(),
         sku: form.sku.trim(),
         category_id: form.category_id,
-        supplier_id: form.supplier_id,
         image_url: form.image_url.trim() || undefined,
         specifications: cleanSpecs,
-        warehouse_id: form.warehouse_id,
+        // warehouse_id & supplier_id removed.
       }
 
       await productApiService.createProduct(payload)
-      setToast({ message: `Thêm "${form.name}" thành công! 🎉`, type: 'success' })
+      setToast({ message: `✦ Đã đăng ký Model "${form.name}" thành công!`, type: 'success' })
       setModal({ open: false, mode: 'add', productId: null })
       refetchProducts()
       refetchStats()

@@ -79,7 +79,6 @@ model Supplier {
   phone        String?   @db.VarChar(20)
   address      String?   @db.Text
   email        String?   @db.VarChar(100)
-  products     Product[]
 
   @@map("suppliers")
 }
@@ -87,14 +86,12 @@ model Supplier {
 model Product {
   id             Int           @id @default(autoincrement())
   category_id    Int?
-  supplier_id    Int?
   name           String        @db.VarChar(200)
   sku            String        @unique @db.VarChar(100)
   image_url      String?       @db.VarChar(255)
   specifications Json?
   created_at     DateTime      @default(now())
   category       Category?     @relation(fields: [category_id], references: [id])
-  supplier       Supplier?     @relation(fields: [supplier_id], references: [id])
   inventory      Inventory[]
   product_items  ProductItem[]
   transaction_details TransactionDetail[]

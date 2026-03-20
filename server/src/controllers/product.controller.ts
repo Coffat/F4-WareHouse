@@ -26,17 +26,17 @@ const createProductSchema = z.object({
   name: z.string({ required_error: 'Tên sản phẩm là bắt buộc' }).min(1, 'Tên sản phẩm không được trống'),
   sku: z.string({ required_error: 'SKU là bắt buộc' }).min(1, 'SKU không được trống'),
   category_id: z.number({ required_error: 'Danh mục là bắt buộc' }).int().positive(),
-  supplier_id: z.number().int().positive().optional(),
   image_url: z.string().url('URL hình ảnh không hợp lệ').optional().or(z.literal('')),
   specifications: z.record(z.unknown(), { required_error: 'Thông số kỹ thuật là bắt buộc' }),
-  warehouse_id: z.number({ required_error: 'Kho khởi tạo là bắt buộc' }).int().positive(),
+  // warehouse_id và supplier_id đã được loại bỏ: 
+  // - Đăng ký Model là Master Data (Facade tự động khởi tạo Inventory).
+  // - Nhà cung cấp sẽ được gắn ở bước Nhập kho (Inbound).
 });
 
 const updateProductSchema = z.object({
   name: z.string().min(1).optional(),
   sku: z.string().min(1).optional(),
   category_id: z.number().int().positive().optional(),
-  supplier_id: z.number().int().positive().optional(),
   image_url: z.string().url().optional().or(z.literal('')),
   specifications: z.record(z.unknown()).optional(),
 });

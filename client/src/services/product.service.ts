@@ -25,15 +25,14 @@ export interface ApiProduct {
   specifications: Record<string, string> | null;
   created_at: string;
   category: { id: number; name: string } | null;
-  supplier: { id: number; company_name: string } | null;
   inventory: ApiInventory[];
 }
 
 export interface ApiProductStats {
-  phones: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
-  laptops: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
-  accessories: { category_name: string; category_id: number; product_count: number; total_quantity: number; sold_count: number };
-  total_products: number;
+  phones: { category_name: string; category_id: number; model_count: number; total_quantity: number; sold_count: number };
+  laptops: { category_name: string; category_id: number; model_count: number; total_quantity: number; sold_count: number };
+  accessories: { category_name: string; category_id: number; model_count: number; total_quantity: number; sold_count: number };
+  total_models: number;
   total_quantity: number;
 }
 
@@ -55,7 +54,6 @@ export interface ApiWarehouse {
 
 export interface FormOptions {
   categories: ApiCategory[];
-  suppliers: ApiSupplier[];
   warehouses: ApiWarehouse[];
 }
 
@@ -63,10 +61,9 @@ export interface CreateProductPayload {
   name: string;
   sku: string;
   category_id: number;
-  supplier_id?: number;
   image_url?: string;
   specifications: Record<string, string>;
-  warehouse_id: number;
+  // warehouse_id và supplier_id đã được loại bỏ.
 }
 
 export interface ProductListResponse {

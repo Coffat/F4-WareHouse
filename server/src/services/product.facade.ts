@@ -1,14 +1,20 @@
 /**
  * PRODUCT FACADE - FACADE PATTERN
  * =================================
- * Facade Pattern: Cung cấp một interface đơn giản để tạo sản phẩm mới,
+ * Facade Pattern: Cung cấp một interface đơn giản để đăng ký Model mới,
  * che giấu sự phức tạp của nhiều bước bên trong:
+ *
+ * Tư duy Master Data: Một Model (Product) là độc lập với kho.
+ * Khi đăng ký Model mới, hệ thống tự động khởi tạo Inventory tại TẤT CẢ kho
+ * hiện có với quantity=0 và status='READY_TO_SELL'.
  *
  * 1. Validate category_id → lấy tên category (+ tra cứu parent nếu là subcategory)
  * 2. Dùng ProductFactory tạo template + validate cấu trúc spec (Strategy)
  * 3. Kiểm tra SKU duplicate
- * 4. Lưu sản phẩm vào bảng `products`
- * 5. Khởi tạo bản ghi `inventory` ban đầu tại kho được chọn (quantity = 0)
+ * 4. Trong một Prisma Transaction duy nhất:
+ *    a. Lưu sản phẩm vào bảng `products`
+ *    b. Lấy tất cả warehouse IDs
+ *    c. Upsert bản ghi `inventory` cho TẤT CẢ kho (quantity=0, READY_TO_SELL)
  *
  * Client chỉ cần gọi: `productFacade.createProduct(dto)` — không cần biết gì thêm.
  */
@@ -57,14 +63,15 @@ export class SpecificationValidationError extends Error {
 // =============================================
 class ProductFacade {
   /**
-   * ⭐ Hàm FACADE chính: Tạo sản phẩm hoàn chỉnh
+   * ⭐ Hàm FACADE chính: Đăng ký Model mới (Master Data)
    *
    * Orchestrates:
    * - Factory Method → xác định loại sản phẩm (tự tra cứu parent nếu là subcategory)
    * - Strategy Pattern → validate spec theo category
-   * - Repository → lưu Product + Inventory
+   * - Prisma Transaction → đảm bảo toàn vẹn dữ liệu
+   * - Auto-init Inventory cho TẤT CẢ kho với quantity=0
    */
-  async createProduct(dto: CreateProductDto): Promise<ProductWithInventory> {
+  async createProduct(dto: Omit<CreateProductDto, 'warehouse_id'>): Promise<ProductWithInventory> {
     if (process.env.NODE_ENV === 'development') {
       console.log(`🏗️ [Facade] createProduct() initiated for SKU: ${dto.sku}`);
     }
@@ -79,17 +86,7 @@ class ProductFacade {
       throw new InvalidCategoryError(dto.category_id);
     }
 
-    // ── Bước 2: Validate warehouse tồn tại ──
-    const warehouse = await prisma.warehouse.findUnique({
-      where: { id: dto.warehouse_id },
-      select: { id: true, name: true },
-    });
-
-    if (!warehouse) {
-      throw new InvalidWarehouseError(dto.warehouse_id);
-    }
-
-    // ── Bước 3: H1 Fix — Dùng Factory để lấy required fields ──
+    // ── Bước 2: H1 Fix — Dùng Factory để lấy required fields ──
     // Nếu category không có trong Factory (là subcategory), tra cứu parent_id để tìm Strategy cha
     let effectiveCategoryName = category.name;
     const supportedCategories = ProductFactory.getSupportedCategories();
@@ -104,7 +101,7 @@ class ProductFacade {
       if (parentCategory && supportedCategories.includes(parentCategory.name)) {
         effectiveCategoryName = parentCategory.name;
         if (process.env.NODE_ENV === 'development') {
-          console.log(`   🔍 Step 3: Subcategory "${category.name}" → resolved to parent Strategy "${parentCategory.name}"`);
+          console.log(`   🔍 Step 2: Subcategory "${category.name}" → resolved to parent Strategy "${parentCategory.name}"`);
         }
       } else {
         // Không tìm thấy Strategy cho cả category con lẫn cha → lỗi rõ ràng
@@ -119,11 +116,11 @@ class ProductFacade {
     } catch (_err) {
       // Category chưa có trong Factory (cả parent cũng không hỗ trợ)
       if (process.env.NODE_ENV === 'development') {
-        console.log(`   ⚠️ Step 3: No Factory template for "${effectiveCategoryName}", skipping spec validation`);
+        console.log(`   ⚠️ Step 2: No Factory template for "${effectiveCategoryName}", skipping spec validation`);
       }
     }
 
-    // ── Bước 4: Dùng Strategy để validate specifications JSON ──
+    // ── Bước 3: Dùng Strategy để validate specifications JSON ──
     try {
       const validator = new SpecificationValidatorContext(effectiveCategoryName);
       const validationResult = validator.validate(dto.specifications);
@@ -136,30 +133,77 @@ class ProductFacade {
       // Không có strategy → bỏ qua validation (category chưa được định nghĩa)
     }
 
-    // ── Bước 5: Kiểm tra SKU duplicate ──
+    // ── Bước 4: Kiểm tra SKU duplicate (trước transaction để fail early) ──
     const existingProduct = await productRepository.findBySku(dto.sku);
     if (existingProduct) {
       throw new DuplicateSkuError(dto.sku);
     }
 
-    // ── Bước 6: Lưu sản phẩm vào DB ──
-    const newProduct = await productRepository.create({
-      name: dto.name,
-      sku: dto.sku,
-      category_id: dto.category_id,
-      supplier_id: dto.supplier_id,
-      image_url: dto.image_url,
-      specifications: dto.specifications,
+    // ── Bước 5: Prisma Transaction — đảm bảo toàn vẹn dữ liệu ──
+    // Builder Pattern: Xây dựng chuỗi operations: insert Product → batch upsert Inventory cho TẤT CẢ kho
+    const newProductId = await prisma.$transaction(async (tx) => {
+      // 5a. Lưu Model vào bảng products
+      const created = await tx.product.create({
+        data: {
+          name: dto.name,
+          sku: dto.sku,
+          category_id: dto.category_id,
+          supplier_id: dto.supplier_id ?? null,
+          image_url: dto.image_url ?? null,
+          specifications: dto.specifications as object,
+        },
+        select: { id: true },
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`   ✅ Step 5a: Product "${dto.name}" created with ID #${created.id}`);
+      }
+
+      // 5b. Lấy TẤT CẢ warehouse IDs hiện có
+      const allWarehouses = await tx.warehouse.findMany({
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      });
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`   📦 Step 5b: Found ${allWarehouses.length} warehouse(s) to initialize inventory`);
+      }
+
+      // 5c. Upsert Inventory cho TỪNG kho với quantity=0, status='READY_TO_SELL'
+      // Observer Pattern: Đăng ký Model tự động "thông báo" đến tất cả kho → spawn inventory records
+      await Promise.all(
+        allWarehouses.map((w) =>
+          tx.inventory.upsert({
+            where: {
+              warehouse_id_product_id_status: {
+                warehouse_id: w.id,
+                product_id: created.id,
+                status: 'READY_TO_SELL',
+              },
+            },
+            update: {}, // Không cập nhật nếu đã tồn tại
+            create: {
+              warehouse_id: w.id,
+              product_id: created.id,
+              quantity: 0,
+              status: 'READY_TO_SELL',
+            },
+          }),
+        ),
+      );
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`   ✅ Step 5c: Inventory initialized for ${allWarehouses.length} warehouse(s)`);
+      }
+
+      return created.id;
     });
 
-    // ── Bước 7: Khởi tạo bản ghi Inventory ban đầu ──
-    await productRepository.createInitialInventory(newProduct.id, dto.warehouse_id);
-
-    // ── Bước 8: Lấy sản phẩm hoàn chỉnh để trả về ──
-    const created = await productRepository.findById(newProduct.id);
+    // ── Bước 6: Lấy sản phẩm hoàn chỉnh để trả về ──
+    const created = await productRepository.findById(newProductId);
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🎉 [Facade] createProduct() DONE: "${newProduct.name}"`);
+      console.log(`🎉 [Facade] createProduct() DONE: "${dto.name}" (ID #${newProductId})`);
     }
 
     return created!;

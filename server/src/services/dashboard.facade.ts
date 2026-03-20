@@ -7,13 +7,13 @@ export class DashboardFacade {
   public async getStats(warehouseId?: number) {
     const filter = warehouseId ? { warehouse_id: warehouseId } : {};
     
-    // total products: distinct products in inventory for this warehouse
-    const totalProductsList = await db.inventory.findMany({
+    // total models: distinct products (Models) registered in inventory for this warehouse
+    const totalModelsList = await db.inventory.findMany({
       where: filter,
       select: { product_id: true },
       distinct: ['product_id']
     });
-    const totalProducts = totalProductsList.length;
+    const totalModels = totalModelsList.length;
 
     const inventoryAgg = await db.inventory.aggregate({
       _sum: { quantity: true },
@@ -75,7 +75,7 @@ export class DashboardFacade {
     const densityResult = await storageDensityStrategy.calculateHealth(warehouseId);
 
     return {
-      totalProducts,
+      totalModels, // Updated name
       totalStock,
       defective,
       readyToSell: totalStock - defective,

@@ -11,7 +11,7 @@ import { CreateProductDto, UpdateProductDto, ProductQueryDto, ProductWithInvento
 class ProductRepository {
   /**
    * Lấy danh sách sản phẩm với filter và pagination.
-   * Bao gồm: category, supplier, và inventory tổng hợp.
+   * Bao gồm: category và inventory tổng hợp.
    */
   async findAll(query: ProductQueryDto): Promise<ProductWithInventory[]> {
     const { category_id, warehouse_id, search, page = 1, limit = 50 } = query;
@@ -40,9 +40,6 @@ class ProductRepository {
         category: {
           select: { id: true, name: true },
         },
-        supplier: {
-          select: { id: true, company_name: true },
-        },
         inventory: {
           where: warehouse_id ? { warehouse_id } : {},
           select: {
@@ -67,7 +64,6 @@ class ProductRepository {
       where: { id },
       include: {
         category: { select: { id: true, name: true } },
-        supplier: { select: { id: true, company_name: true } },
         inventory: {
           select: {
             id: true,
@@ -100,7 +96,6 @@ class ProductRepository {
         name: dto.name,
         sku: dto.sku,
         category_id: dto.category_id,
-        supplier_id: dto.supplier_id ?? null,
         image_url: dto.image_url ?? null,
         specifications: dto.specifications as object,
       },
@@ -118,13 +113,11 @@ class ProductRepository {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.sku !== undefined ? { sku: dto.sku } : {}),
         ...(dto.category_id !== undefined ? { category_id: dto.category_id } : {}),
-        ...(dto.supplier_id !== undefined ? { supplier_id: dto.supplier_id } : {}),
         ...(dto.image_url !== undefined ? { image_url: dto.image_url } : {}),
         ...(dto.specifications !== undefined ? { specifications: dto.specifications as object } : {}),
       },
       include: {
         category: { select: { id: true, name: true } },
-        supplier: { select: { id: true, company_name: true } },
         inventory: {
           select: { id: true, warehouse_id: true, quantity: true, status: true },
         },
@@ -171,15 +164,16 @@ class ProductRepository {
     Array<{
       category_id: number;
       category_name: string;
-      product_count: number;
+      model_count: number;    // Rename from product_count
       total_quantity: number;
+      sold_count: number;
     }>
   > {
-    // Query tất cả category có sản phẩm
+    // Query tất cả category gốc (Master Data Catalog)
     const categories = await prisma.category.findMany({
       where: {
         products: { some: {} }, // Chỉ lấy category có ít nhất 1 sản phẩm
-        parent_id: null,        // Chỉ lấy category gốc (Phone, Laptop, Accessory)
+        parent_id: null,        // Chỉ lấy category gốc
       },
       select: {
         id: true,
@@ -207,12 +201,13 @@ class ProductRepository {
     });
 
     return categories.map((cat: any) => {
-      const activeProducts = cat.products.filter((p: any) => p.inventory.length > 0 || p.product_items.length > 0);
+      // Đếm các Model (Products) có tồn kho hoặc có lịch sử bán
+      const activeModels = cat.products.filter((p: any) => p.inventory.length > 0 || p.product_items.length > 0);
       return {
         category_id: cat.id,
         category_name: cat.name,
-        product_count: activeProducts.length,
-        total_quantity: activeProducts.reduce(
+        model_count: activeModels.length,
+        total_quantity: activeModels.reduce(
           (sum: number, p: any) =>
             sum + p.inventory.reduce((s: number, inv: any) => s + inv.quantity, 0),
           0
@@ -253,6 +248,18 @@ class ProductRepository {
       select: { id: true, name: true },
       orderBy: { id: 'asc' },
     });
+  }
+
+  /**
+   * Lấy tất cả warehouse IDs.
+   * Dùng bởi ProductFacade để khởi tạo Inventory cho TẤT CẢ kho khi đăng ký Model mới.
+   */
+  async findAllWarehouseIds(): Promise<number[]> {
+    const warehouses = await prisma.warehouse.findMany({
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    return warehouses.map((w) => w.id);
   }
 
   /**

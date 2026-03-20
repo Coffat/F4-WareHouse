@@ -59,18 +59,16 @@ export interface CreateProductDto {
   name: string;
   sku: string;
   category_id: number;
-  supplier_id?: number;
   image_url?: string;
   specifications: ProductSpecifications;
-  /** Kho sẽ khởi tạo bản ghi Inventory ban đầu */
-  warehouse_id: number;
+  // warehouse_id removed: Đăng ký Model là Master Data.
+  // Facade tự động khởi tạo Inventory cho TẤT CẢ kho.
 }
 
 export interface UpdateProductDto {
   name?: string;
   sku?: string;
   category_id?: number;
-  supplier_id?: number;
   image_url?: string;
   specifications?: Partial<ProductSpecifications>;
 }
@@ -97,10 +95,6 @@ export interface ProductWithInventory {
     id: number;
     name: string;
   } | null;
-  supplier: {
-    id: number;
-    company_name: string;
-  } | null;
   inventory: Array<{
     id: number;
     warehouse_id: number | null;
@@ -112,16 +106,16 @@ export interface ProductWithInventory {
 export interface CategoryStatsDto {
   category_name: string;
   category_id: number;
-  product_count: number;
-  total_quantity: number;
-  sold_count: number;
+  model_count: number;    // Thay thế product_count: Số lượng Model (iPhone 15, Dell XPS...)
+  total_quantity: number; // Tổng số máy tồn kho (Inventory quantity sum)
+  sold_count: number;     // Tổng số máy đã rời kho (ProductItem SOLD count)
 }
 
 export interface ProductStatsDto {
   phones: CategoryStatsDto;
   laptops: CategoryStatsDto;
   accessories: CategoryStatsDto;
-  total_products: number;
+  total_models: number;   // Thay thế total_products
   total_quantity: number;
 }
 
