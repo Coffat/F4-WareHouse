@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import Header from '../components/common/Header'
+
 import {
   Bar,
   BarChart,
@@ -187,7 +189,7 @@ function NavIcon({ active, label, children, onClick }: { active?: boolean; label
       aria-label={label}
       className={cn(
         'w-11 h-11 rounded-2xl flex items-center justify-center transition-all active:scale-95',
-        active ? 'bg-lilac-clay text-slate-800' : 'bg-cream-bg text-slate-500 hover:text-slate-700',
+        active ? 'bg-mint-clay text-slate-800' : 'bg-cream-bg text-slate-500 hover:text-slate-700',
       )}
       style={{
         boxShadow: active
@@ -393,7 +395,7 @@ export default function Dashboard() {
               </Link>
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
               <Link to="/"><NavIcon label="Dashboard" active><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
-              <NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon>
+              <Link to="/operations"><NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon></Link>
               <Link to="/products"><NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
               <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
@@ -406,59 +408,38 @@ export default function Dashboard() {
           {/* ── Main Content ───────────────────────────── */}
           <main className="flex-1 min-w-0">
 
-            {/* Top Nav Bar */}
-            <header className="flex items-center justify-between gap-4 mb-6">
-              <div>
-                <span
-                  className="text-[11px] font-semibold text-slate-400 bg-white rounded-full px-3 py-1"
-                  style={{ boxShadow: '-2px -2px 6px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.07)' }}
-                >
-                  F4 Warehouse
-                </span>
-                <h1 className="text-2xl font-bold text-slate-900 mt-1">Trung Tâm Điều Phối</h1>
-                <p className="text-sm text-slate-500">
+            {/* Unified Top Header — Claymorphism Edition */}
+            <Header
+              title="Trung Tâm Điều Phối"
+              subtitle={
+                <>
                   Theo dõi vận hành thời gian thực tại{' '}
-                  <span className="font-semibold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full">
+                  <span className="font-bold text-emerald-600 bg-mint-clay/50 px-3 py-0.5 rounded-full inline-flex items-center gap-1.5 shadow-sm">
                     {currentWarehouseName}
                   </span>
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div
-                  className="hidden lg:flex items-center gap-2 rounded-full bg-white px-4 py-2.5 w-[280px]"
-                  style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 8px 12px 24px rgba(17,24,39,0.09)' }}
-                >
-                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                  <input
-                    className="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 font-fredoka"
-                    placeholder="Tìm kiếm nhanh..."
-                  />
-                </div>
-                <PillButton 
-                  onClick={() => setWarehouseModal({ open: true, tab: 'select' })}
-                  className="bg-pink-clay/50 text-slate-800" iconBg="bg-pink-clay" icon={<Home className="w-3.5 h-3.5 text-rose-600" />}>
-                  Chọn Kho
-                </PillButton>
-                <PillButton 
-                  onClick={() => setWarehouseModal({ open: true, tab: 'create' })}
-                  className="bg-mint-clay/60 text-slate-800" iconBg="bg-mint-clay" icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}>
-                  Nhập Kho Mới
-                </PillButton>
-                <button
-                  className="relative w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
-                >
-                  <Bell className="w-5 h-5 text-slate-700" />
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-cream-bg" />
-                </button>
-                <button
-                  className="w-10 h-10 rounded-full bg-lilac-clay flex items-center justify-center transition-all active:scale-95 text-xs font-bold text-slate-700"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
-                >
-                  VT
-                </button>
-              </div>
-            </header>
+                </>
+              }
+              showSearch
+              actions={{
+                secondary: {
+                  label: "Chọn Kho",
+                  icon: <Home className="w-4 h-4 text-[#F43F5E]" />,
+                  color: "#F43F5E",
+                  bgColor: "bg-[#FFE4E9]",
+                  onClick: () => setWarehouseModal({ open: true, tab: 'select' })
+                },
+                primary: {
+                  label: "Nhập Kho Mới",
+                  icon: <Plus className="w-4 h-4 text-[#10B981]" />,
+                  color: "#10B981",
+                  bgColor: "bg-[#DCFCE7]",
+                  onClick: () => setWarehouseModal({ open: true, tab: 'create' })
+                }
+              }}
+              userInitials="VT"
+            />
+
+
 
             {/* ══════════════════════════════════════════
                 ROW 1: Chart (8 cols) + KPI pills (4 cols)

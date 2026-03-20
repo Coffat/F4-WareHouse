@@ -148,7 +148,6 @@ class ProductFacade {
           name: dto.name,
           sku: dto.sku,
           category_id: dto.category_id,
-          supplier_id: dto.supplier_id ?? null,
           image_url: dto.image_url ?? null,
           specifications: dto.specifications as object,
         },

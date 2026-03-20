@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import ProductManagement from './pages/ProductManagement';
+import Operations from './pages/Operations';
 import Login from './pages/Login';
 import { useAuthStore } from './store/useAuthStore';
 import { useWarehouseStore } from './store/useWarehouseStore';
@@ -35,6 +36,14 @@ export default function App() {
         element={
           <PrivateRoute>
             <Dashboard />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/operations" 
+        element={
+          <PrivateRoute>
+            <Operations />
           </PrivateRoute>
         } 
       />

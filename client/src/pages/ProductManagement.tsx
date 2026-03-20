@@ -17,8 +17,12 @@ import {
   Bell, Box, ChevronRight, Headphones, LayoutDashboard, Laptop,
   Package, PackageSearch, Plus, Search, Settings, Smartphone, Truck,
   Warehouse, X, Edit3, Trash2, Filter, ScanLine, Tag, Cpu,
-  HardDrive, Battery, Monitor, RefreshCw, AlertCircle, Loader2, ChevronDown
+  HardDrive, Battery, Monitor, RefreshCw, AlertCircle, Loader2, ChevronDown,
+  Home
 } from 'lucide-react'
+
+import Header from '../components/common/Header'
+
 import {
   productApiService,
   ApiProduct, ApiProductStats, FormOptions,
@@ -796,7 +800,7 @@ function ProductManagementView({
               </Link>
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
               <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
-              <NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon>
+              <Link to="/operations"><NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon></Link>
               <Link to="/products"><NavIcon label="Sản phẩm" active><Package className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
               <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
@@ -809,75 +813,52 @@ function ProductManagementView({
           {/* ── Main Content ─────────────────── */}
           <main className="flex-1 min-w-0">
 
-            {/* ── Header ─── */}
-            <header className="flex items-center justify-between gap-4 mb-6">
-              <div>
-                <span
-                  className="text-[11px] font-semibold text-slate-400 bg-white rounded-full px-3 py-1"
-                  style={{ boxShadow: '-2px -2px 6px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.07)' }}
-                >
-                  F4 Warehouse · Quản lý kho
-                </span>
-                <h1 className="text-2xl font-bold text-slate-900 mt-1">
-                  Quản lý Sản phẩm{' '}
-                  <span className="text-emerald-600 bg-mint-clay/40 px-3 py-0.5 rounded-full text-lg">
-                    {stats ? `${stats.total_models} Models` : '—'}
-                  </span>
-                </h1>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  Tổng tồn kho: {stats?.total_quantity ?? '—'} đơn vị tại{' '}
-                  <span className="font-semibold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full">
-                    {selectedWarehouseId === null ? 'Tất cả chi nhánh' : (availableWarehouses.find(w => w.id === selectedWarehouseId)?.name || 'Đang tải...')}
-                  </span>
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div
-                  className="hidden lg:flex items-center gap-2 rounded-full bg-white px-4 py-2.5 w-[260px]"
-                  style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 8px 12px 24px rgba(17,24,39,0.09)' }}
-                >
-                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                  <input
-                    className="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 font-fredoka"
-                    placeholder="Tìm theo tên, SKU..."
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                  />
+            {/* Unified Top Header — Claymorphism Edition */}
+            <Header
+              title="Quản lý Sản phẩm"
+              subtitle={
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-600 bg-mint-clay/50 px-3 py-0.5 rounded-full font-bold shadow-sm">
+                      {stats ? `${stats.total_models} Models` : '—'}
+                    </span>
+                    <span className="text-slate-400">·</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap">
+                      Tổng tồn: {stats?.total_quantity ?? '—'} đơn vị
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">Tại kho:</span>
+                     <span className="font-bold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full text-[12px]">
+                       {selectedWarehouseId === null ? 'Tất cả chi nhánh' : (availableWarehouses.find(w => w.id === selectedWarehouseId)?.name || 'Đang tải...')}
+                     </span>
+                  </div>
                 </div>
-                <button
-                  onClick={onOpenWarehouseModal}
-                  className="h-10 rounded-full px-4 text-[13px] font-semibold inline-flex items-center gap-2 transition-all active:scale-95 bg-pink-clay/50 text-slate-800"
-                  style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 10px 14px 28px rgba(17,24,39,0.12)' }}
-                >
-                  <span className="w-6 h-6 rounded-full inline-flex items-center justify-center bg-pink-clay" style={{ boxShadow: '-3px -3px 6px rgba(255,255,255,0.9), 4px 4px 10px rgba(17,24,39,0.1)' }}>
-                    <Warehouse className="w-3.5 h-3.5 text-rose-600" />
-                  </span>
-                  Chọn Kho
-                </button>
-                <button
-                  onClick={onRefresh}
-                  className="w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:-translate-y-0.5"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
-                  title="Làm mới"
-                >
-                  <RefreshCw className="w-4 h-4 text-slate-500" />
-                </button>
-                <button
-                  className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
-                >
-                  <Bell className="w-4 h-4 text-slate-500" />
-                </button>
-                <button
-                  onClick={onOpenAdd}
-                  className="h-10 rounded-full px-5 text-[13px] font-bold bg-mint-clay text-slate-800 inline-flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5"
-                  style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.12)' }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Thêm sản phẩm
-                </button>
-              </div>
-            </header>
+              }
+              showSearch
+              searchPlaceholder="Tìm theo tên, SKU..."
+              onSearchChange={onSearchChange}
+              actions={{
+                secondary: {
+                  label: "Chọn Kho",
+                  icon: <Home className="w-4 h-4 text-[#F43F5E]" />,
+                  color: "#F43F5E",
+                  bgColor: "bg-[#FFE4E9]",
+                  onClick: onOpenWarehouseModal
+                },
+                primary: {
+                  label: "Thêm Model",
+                  icon: <Plus className="w-5 h-5 text-[#10B981]" />,
+                  color: "#10B981",
+                  bgColor: "bg-[#DCFCE7]",
+                  onClick: onOpenAdd,
+                  variant: 'bubble'
+                }
+              }}
+              userInitials="VT"
+            />
+
+
 
             {/* ── Stats Row ── */}
             <div className="grid grid-cols-3 gap-4 mb-6">

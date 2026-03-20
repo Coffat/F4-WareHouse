@@ -8,22 +8,20 @@ interface ProductSpec {
   name: string;
   sku: string;
   category_id: number;
-  supplier_id: number;
   image_url?: string;
   specifications: any;
 }
 
 abstract class ProductFactory {
-  abstract createProduct(baseSku: string, index: number, categoryId: number, supplierId: number): ProductSpec;
+  abstract createProduct(baseSku: string, index: number, categoryId: number): ProductSpec;
 }
 
 class PhoneFactory extends ProductFactory {
-  createProduct(baseSku: string, index: number, categoryId: number, supplierId: number): ProductSpec {
+  createProduct(baseSku: string, index: number, categoryId: number): ProductSpec {
     return {
       name: `Smartphone Model ${index}`,
       sku: `${baseSku}-PHONE-${index}`,
       category_id: categoryId,
-      supplier_id: supplierId,
       image_url: `https://example.com/phone${index}.jpg`,
       specifications: {
         ram: "8GB",
@@ -36,12 +34,11 @@ class PhoneFactory extends ProductFactory {
 }
 
 class LaptopFactory extends ProductFactory {
-  createProduct(baseSku: string, index: number, categoryId: number, supplierId: number): ProductSpec {
+  createProduct(baseSku: string, index: number, categoryId: number): ProductSpec {
     return {
       name: `Pro Laptop ${index}`,
       sku: `${baseSku}-LAP-${index}`,
       category_id: categoryId,
-      supplier_id: supplierId,
       image_url: `https://example.com/laptop${index}.jpg`,
       specifications: {
         cpu: "Intel Core i7",
@@ -54,12 +51,11 @@ class LaptopFactory extends ProductFactory {
 }
 
 class AccessoryFactory extends ProductFactory {
-  createProduct(baseSku: string, index: number, categoryId: number, supplierId: number): ProductSpec {
+  createProduct(baseSku: string, index: number, categoryId: number): ProductSpec {
     return {
       name: `Premium Headphone ${index}`,
       sku: `${baseSku}-ACC-${index}`,
       category_id: categoryId,
-      supplier_id: supplierId,
       image_url: `https://example.com/acc${index}.jpg`,
       specifications: {
         type: "Wireless",
@@ -205,7 +201,7 @@ async function main() {
 
   for (let i = 1; i <= 30; i++) {
     const { factory, catId } = factories[i % 3];
-    const spec = factory.createProduct('TECH', i, catId, supplier.id);
+    const spec = factory.createProduct('TECH', i, catId);
     products.push(await prisma.product.create({ data: spec }));
   }
 
