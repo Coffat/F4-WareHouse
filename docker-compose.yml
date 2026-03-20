@@ -1,15 +1,12 @@
-version: '3.8'
-
 services:
   db:
     image: mysql:8.0
     container_name: wms-db
-    restart: always
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: wms_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
     ports:
       - "3306:3306"
     volumes:
@@ -21,33 +18,41 @@ services:
   server:
     build:
       context: ./server
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: wms-server
-    restart: always
+    restart: unless-stopped
     depends_on:
       - db
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
-      - DATABASE_URL=mysql://user:password@db:3306/wms_db
+      - DATABASE_URL=mysql://root:rootpassword@db:3306/wms_db
       - JWT_SECRET=wms-super-secret-jwt-key-change-this-in-production-2026
       - JWT_EXPIRES_IN=7d
-      - CLIENT_URL=http://localhost:80
+      - CLIENT_URL=http://localhost:5173
     ports:
       - "3000:3000"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
     networks:
       - wms-network
 
   client:
     build:
       context: ./client
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: wms-client
-    restart: always
+    restart: unless-stopped
     depends_on:
       - server
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
     ports:
-      - "80:80"
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
     networks:
       - wms-network
 

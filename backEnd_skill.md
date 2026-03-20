@@ -1,55 +1,40 @@
-# BE Skill Profile: Antigravity - Design Pattern Architect
 
-## 1. Core Tech Stack (Node.js 2026)
+# BE Skill Profile: Antigravity - Senior Software Architect
 
-* **Runtime:** Node.js (Latest LTS) sử dụng ES Modules.
-* **Language:** TypeScript (Strict mode) để định nghĩa chính xác Product Specs (JSON)^^.
-* **ORM:** Prisma hoặc Sequelize cho giao tiếp Database^^.
+## 1. Architecture Philosophy (Triết lý kiến trúc)
 
-## 2. The Elite 9 Design Patterns (Warehouse Context)
+* **Standard:** Tuân thủ chặt chẽ mô hình **Controller-Service-Repository** để đảm bảo sự tách biệt về trách nhiệm (Separation of Concerns).
+* **Principles:** Luôn ưu tiên  **SOLID** , **DRY** (Don't Repeat Yourself) và **KISS** (Keep It Simple, Stupid).
+* **Context Awareness:** Antigravity có quyền tự quyết định việc áp dụng Design Pattern nào tối ưu nhất dựa trên độ phức tạp của logic nghiệp vụ tại thời điểm thực thi.
 
-Antigravity phải áp dụng các pattern này vào logic nghiệp vụ của  **F4 Warehouse** :
+## 2. The Design Pattern Toolbox (Bộ công cụ thiết kế)
 
-* **Singleton + Factory:**
-  * **Singleton:** Đảm bảo chỉ có một thực thể `DatabaseConnection` hoặc `AppConfig` duy nhất.
-  * **Factory Method:** Tạo các đối tượng Sản phẩm (Phone, Laptop, Accessory) dựa trên `<span class="citation-306">Category_ID</span>`^^^^^^^^.
-* **Builder:** Sử dụng để khởi tạo các `<span class="citation-305">Transaction</span>` (Phiếu giao dịch) phức tạp với nhiều dòng `<span class="citation-305">Transaction_Detail</span>` và danh sách IMEI đi kèm^^^^^^^^.
-* **Strategy:** Định nghĩa các chiến lược tính giá (FIFO, LIFO, Weighted Average) hoặc các phương thức xuất file báo cáo (Excel, PDF, CSV)^^.
-* **Observer:** Khi một `<span class="citation-303">Transaction</span>` hoàn tất, hệ thống tự động thông báo cho bộ phận Kế toán và cập nhật lại số lượng trong `<span class="citation-303">Inventory</span>`^^^^^^^^.
-* **Decorator:** Bổ sung các tính năng như "Ghi Log chi tiết" hoặc "Kiểm tra bảo mật bổ sung" vào các hàm xử lý giao dịch mà không làm thay đổi code gốc.
-* **Facade + Adapter:**
-  * **Facade:** Cung cấp một Interface đơn giản (ví dụ: `<span class="citation-302">InboundService.process()</span>`) để che giấu các bước phức tạp bên trong (tạo phiếu, lưu IMEI, cập nhật tồn kho)^^.
-  * **Adapter:** Chuyển đổi dữ liệu từ các API bên thứ ba (như đơn vị vận chuyển) về định dạng chuẩn của hệ thống F4.
-* **Proxy:** Thực hiện **Role-Based Access Control (RBAC)**^^. **Kiểm tra quyền của User (Owner, Manager, Staff) trước khi cho phép truy cập vào dữ liệu kho cụ thể**^^^^^^^^.
-* **Template Method + State:**
-  * **Template Method:** Định nghĩa khung quy trình "Xử lý đơn hàng" cố định, nhưng cho phép các subclass thay đổi cách kiểm tra lỗi cho từng loại kho khác nhau.
-  * **State:** Quản lý trạng thái của `<span class="citation-299">Transaction</span>` (Draft -> Pending -> Completed -> Cancelled) và trạng thái hàng hóa (Ready, Defective, In Transit)^^^^^^^^.
-* **Command:** Encapsulate các yêu cầu điều chuyển kho (Stock Transfer) thành các đối tượng, cho phép thực hiện tính năng **Undo/Redo** khi nhân viên nhập sai^^.
+Thay vì áp dụng máy móc, Antigravity sử dụng 9 patterns này như những giải pháp linh hoạt cho các vấn đề cụ thể trong quản lý kho:
 
-## 3. Bonus Advanced Patterns (From "Dive Into Design Patterns")
+* **Creational Patterns (Khởi tạo):**
+  * **Singleton:** Quản lý vòng đời của các tài nguyên chia sẻ duy nhất như Database Connection (Prisma/Sequelize) hoặc App Configuration.
+  * **Factory Method:** Áp dụng khi cần tạo các đối tượng có logic khởi tạo phức tạp hoặc phụ thuộc vào loại dữ liệu (ví dụ: các loại Product khác nhau dựa trên `Category_ID`).
+  * **Builder:** Sử dụng cho các đối tượng có quá nhiều tham số hoặc cần xây dựng theo từng bước (ví dụ: khởi tạo một `Transaction` kèm theo hàng loạt `Transaction_Detail`).
+* **Structural Patterns (Cấu trúc):**
+  * **Proxy:** Đóng vai trò là "người gác cổng" cho các tác vụ nhạy cảm, đặc biệt là kiểm tra quyền truy cập (RBAC) trước khi chạm vào Service thực tế.
+  * **Facade & Adapter:** **Facade** dùng để che giấu sự phức tạp của các hệ thống con (Inbound/Outbound logic); **Adapter** dùng để tương thích hóa dữ liệu từ các API bên thứ ba hoặc định dạng file khác nhau.
+  * **Decorator:** Bổ sung tính năng (Logging, Validation, Caching) cho các hàm hiện có mà không làm thay đổi cấu trúc code gốc.
+* **Behavioral Patterns (Hành vi):**
+  * **Strategy:** Đóng gói các thuật toán có thể thay thế lẫn nhau (ví dụ: các phương pháp tính giá vốn, quy tắc kiểm tra IMEI, hoặc các loại Export báo cáo).
+  * **Observer:** Tạo cơ chế phản ứng tự động giữa các module (ví dụ: khi đơn hàng hoàn tất thì tự động cập nhật tồn kho và gửi thông báo).
+  * **Template Method & State:** **Template Method** định nghĩa khung quy trình nghiệp vụ; **State** quản lý vòng đời chuyển đổi trạng thái của các thực thể như `Transaction` hoặc `Inventory`.
+  * **Command:** Chuyển đổi các yêu cầu thành đối tượng độc lập, hỗ trợ tốt cho việc quản lý lịch sử thao tác, Undo/Redo hoặc xếp hàng đợi xử lý (Queue).
 
-* **Chain of Responsibility:** Cực kỳ hữu ích cho việc  **Validation IMEI** . **Lô hàng nhập vào sẽ đi qua một chuỗi các bước kiểm tra: Đúng định dạng -> Không trùng trong file -> Không trùng trong DB**^^.
-* **Mediator:** Giảm sự phụ thuộc lẫn nhau giữa `InventoryService`, `UserService`, và `NotificationService`. Mọi liên lạc sẽ đi qua một Trung gian (Mediator).
-* **Composite:** Quản lý danh mục sản phẩm (Category) theo dạng cây, giúp xử lý các danh mục đa cấp (Ví dụ: Phụ kiện -> Ốp lưng -> Ốp lưng iPhone)^^.
+## 3. Advanced Reasoning (Tư duy nâng cao)
 
----
+Antigravity cần chủ động kết hợp các Pattern từ cuốn **"Dive Into Design Patterns"** để giải quyết các bài toán đặc thù của đồ điện tử:
 
-## 4. Elite Combinations (The "Wow" Factor)
+* **Chain of Responsibility:** Xử lý chuỗi kiểm tra dữ liệu đầu vào (ví dụ: Validation IMEI đa cấp).
+* **Memento:** Hỗ trợ phục hồi trạng thái dữ liệu khi xảy ra lỗi trong các tiến trình dài (Long-running transactions).
+* **Composite:** Quản lý các cấu trúc dữ liệu phân cấp như danh mục sản phẩm (Category Tree).
 
-Antigravity cần biết cách kết hợp các pattern để xử lý các bài toán khó:
+## 4. Operational Environment (Môi trường vận hành)
 
-> ### 🚀 Siêu Logic: Command + Observer + Memento
->
-> Khi thực hiện một đợt "Kiểm kê kho" (Audit), mỗi thao tác điều chỉnh số lượng sẽ được gói trong một  **Command** . **Nếu có sai sót, ****Memento** sẽ giúp khôi phục trạng thái kho (`<span class="citation-295">Inventory</span>`) về thời điểm trước đó, đồng thời **Observer** sẽ gửi cảnh báo đến Owner^^^^^^^^.
-
-> ### 📦 Siêu Logic: Facade + Builder + Strategy
->
-> **Một hàm **`<span class="citation-294">createBulkImport()</span>` (Facade) sẽ sử dụng **Builder** để dựng lên phiếu nhập hàng nghìn IMEI từ file Excel, đồng thời gọi các **Strategy** khác nhau để kiểm tra quy tắc nhập hàng tùy theo nhà cung cấp (Supplier)^^^^^^^^.
-
-:
-
-### thông tin các cổng (Ports):
-
-* **Frontend** : [http://localhost:80](http://localhost/)
-* **Backend API** : [http://localhost:3000](http://localhost:3000/)
-* **Database (MySQL)** : `localhost:3306` (User: `user`, Pass: `password`, DB: `wms_db`)
+* **Runtime:** Node.js (Latest LTS), TypeScript (Strict Mode).
+* **Data Integrity:** Đảm bảo mọi thay đổi dữ liệu kho đều phải nằm trong **Database Transaction** để tránh sai lệch tồn kho.
+* **Ports:** Frontend (:80), Backend API (:3000), MySQL (:3306).

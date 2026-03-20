@@ -97,15 +97,19 @@ export const authorizeRoles = (...allowedRoles: RoleName[]) => {
 // PROXY 3: Kiểm tra quyền truy cập Kho (Warehouse Access Control)
 // =============================================
 /**
- * Middleware kiểm tra quyền truy cập vào một kho cụ thể dựa trên `warehouseId`
- * từ route parameter (mặc định là `req.params.warehouseId`).
+ * Middleware kiểm tra quyền truy cập kho dựa trên:
+ * 1. Route param (mặc định `req.params.warehouseId`)
+ * 2. Query param `req.query.warehouse_id` (cho các route listing như GET /products)
  *
  * Logic RBAC:
- * - Owner → Truy cập TẤT CẢ kho (bypass check)
- * - Manager/Staff → Chỉ truy cập kho trong danh sách `assignedWarehouses` của token
+ * - Owner → Bypass, truy cập TẤT CẢ kho
+ * - Manager/Staff → Chỉ truy cập kho trong `assignedWarehouses` của token
+ *   • Nếu request chỉ định warehouse_id cụ thể → kiểm tra quyền
+ *   • Nếu không chỉ định → cho đi tiếp, controller tự enforce filter
  *
- * Sử dụng: `router.get('/:warehouseId/...', authenticateToken, authorizeWarehouseAccess())`
- * Hoặc custom param: `authorizeWarehouseAccess('id')`
+ * Sử dụng:
+ *   `router.get('/', authorizeWarehouseAccess(), controller.getProducts)`
+ *   `router.get('/:warehouseId/items', authorizeWarehouseAccess('warehouseId'), ...)`
  */
 export const authorizeWarehouseAccess = (paramName: string = "warehouseId") => {
   return (req: Request, res: Response, next: NextFunction): void => {
@@ -122,15 +126,18 @@ export const authorizeWarehouseAccess = (paramName: string = "warehouseId") => {
       return;
     }
 
-    // Lấy warehouseId từ route params
-    const warehouseIdParam = req.params[paramName];
-    if (!warehouseIdParam) {
-      // Không có warehouseId trong route → cho phép (để controller tự lọc)
+    // Xác định warehouse_id được yêu cầu từ route param HOẶC query param
+    const paramValue = req.params[paramName];
+    const queryValue = req.query['warehouse_id'] as string | undefined;
+    const rawId = paramValue ?? queryValue;
+
+    if (!rawId) {
+      // Không chỉ định warehouse cụ thể → cho đi tiếp, controller tự lọc
       next();
       return;
     }
 
-    const requestedWarehouseId = parseInt(warehouseIdParam, 10);
+    const requestedWarehouseId = parseInt(rawId, 10);
 
     if (isNaN(requestedWarehouseId)) {
       res.status(400).json({
@@ -140,7 +147,7 @@ export const authorizeWarehouseAccess = (paramName: string = "warehouseId") => {
       return;
     }
 
-    // Kiểm tra xem kho được yêu cầu có trong danh sách được phân công không
+    // Kiểm tra quyền truy cập kho được yêu cầu
     const hasAccess = user.assignedWarehouses.includes(requestedWarehouseId);
 
     if (!hasAccess) {

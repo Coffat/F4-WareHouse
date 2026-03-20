@@ -12,6 +12,9 @@ import dotenv from "dotenv";
 
 // Routes
 import authRoutes from "./routes/auth.routes";
+import productRoutes from "./routes/product.routes";
+import warehouseRoutes from "./routes/warehouse.routes";
+import dashboardRoutes from "./routes/dashboard.routes";
 
 // Middlewares
 import { globalErrorHandler, notFoundHandler } from "./middlewares/error.middleware";
@@ -57,10 +60,11 @@ app.get("/api/health", (_req, res) => {
 // API ROUTES
 // =============================================
 app.use("/api/auth", authRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/warehouses", warehouseRoutes); // Warehouse module
+app.use("/api/dashboard", dashboardRoutes);
 
 // TODO: Thêm các routes khác tại đây
-// app.use("/api/warehouses", warehouseRoutes);
-// app.use("/api/products", productRoutes);
 // app.use("/api/transactions", transactionRoutes);
 
 // =============================================

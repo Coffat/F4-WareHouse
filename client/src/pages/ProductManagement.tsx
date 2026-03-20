@@ -1,67 +1,74 @@
-import React, { useState, useMemo } from 'react'
+/**
+ * PRODUCT MANAGEMENT PAGE
+ * ========================
+ * Refactored với đầy đủ Design Patterns:
+ *
+ * - Container/Presenter Pattern (H2): ProductManagementPage (Container) vs ProductManagementView (Presenter)
+ * - Compound Component Pattern (S2): Modal.Header / Modal.Body / Modal.Footer
+ * - Custom Hooks (S3): useProducts + useProductStats thay vì inline fetching
+ * - Zustand State (S1): useWarehouseStore cho Warehouse Selector toàn app
+ * - Strategy Pattern: SPEC_FIELDS, mapApiProductToUI
+ * - Inner Shadow CSS Guideline (H4): inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)
+ */
+
+import React, { useState, useMemo, useEffect, useCallback, createContext, useContext } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  Bell,
-  Box,
-  ChevronRight,
-  Headphones,
-  LayoutDashboard,
-  Laptop,
-  Package,
-  PackageSearch,
-  Plus,
-  Search,
-  Settings,
-  Smartphone,
-  Truck,
-  Warehouse,
-  X,
-  Edit3,
-  Trash2,
-  Filter,
-  ScanLine,
-  Tag,
-  Cpu,
-  HardDrive,
-  Battery,
-  Monitor,
+  Bell, Box, ChevronRight, Headphones, LayoutDashboard, Laptop,
+  Package, PackageSearch, Plus, Search, Settings, Smartphone, Truck,
+  Warehouse, X, Edit3, Trash2, Filter, ScanLine, Tag, Cpu,
+  HardDrive, Battery, Monitor, RefreshCw, AlertCircle, Loader2, ChevronDown
 } from 'lucide-react'
+import {
+  productApiService,
+  ApiProduct, ApiProductStats, FormOptions,
+  CreateProductPayload,
+} from '../services/product.service'
+import { useProducts } from '../hooks/useProducts'
+import { useProductStats } from '../hooks/useProductStats'
+import { useWarehouseStore } from '../store/useWarehouseStore'
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-type Category = 'Tất cả' | 'Điện thoại' | 'Laptop' | 'Phụ kiện'
+type CategoryFilter = 'Tất cả' | 'Điện thoại' | 'Laptop' | 'Phụ kiện'
 type StockStatus = 'READY_TO_SELL' | 'DEFECTIVE' | 'IN_TRANSIT'
 
 interface ProductSpec {
-  ram?: string
-  cpu?: string
-  pin?: string
-  storage?: string
-  display?: string
-  gpu?: string
-  color?: string
-  material?: string
-  compatibility?: string
+  [key: string]: string
 }
 
-interface Product {
-  id: string
+/** UI Product shape (mapped từ ApiProduct) */
+interface UIProduct {
+  id: number
   name: string
   sku: string
-  category: Exclude<Category, 'Tất cả'>
+  category: string
   status: StockStatus
   quantity: number
-  price: string
   specs: ProductSpec
   iconType: 'phone' | 'laptop' | 'accessory'
   iconColor: string
   cardBg: string
+  categoryId: number | null
+  supplierId: number | null
+  imageUrl: string | null
+}
+
+interface ModalForm {
+  name: string
+  sku: string
+  category_id: number
+  supplier_id: number | undefined
+  image_url: string
+  warehouse_id: number
+  specs: ProductSpec
 }
 
 interface ModalState {
   open: boolean
   mode: 'add' | 'edit'
-  product: Partial<Product> | null
+  productId: number | null
 }
 
 // ─────────────────────────────────────────────
@@ -71,121 +78,112 @@ function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(' ')
 }
 
-// ─────────────────────────────────────────────
-// Sample Data
-// ─────────────────────────────────────────────
-const PRODUCTS: Product[] = [
-  {
-    id: 'p1',
-    name: 'iPhone 15 Pro Max',
-    sku: 'APL-IP15PM-256',
-    category: 'Điện thoại',
-    status: 'READY_TO_SELL',
-    quantity: 48,
-    price: '34.990.000đ',
-    specs: { ram: '8 GB', cpu: 'A17 Pro', pin: '4.422 mAh', storage: '256 GB' },
-    iconType: 'phone',
-    iconColor: 'text-slate-700',
-    cardBg: 'bg-pink-clay/45',
-  },
-  {
-    id: 'p2',
-    name: 'Samsung Galaxy S24 Ultra',
-    sku: 'SAM-S24U-512',
-    category: 'Điện thoại',
-    status: 'READY_TO_SELL',
-    quantity: 32,
-    price: '31.990.000đ',
-    specs: { ram: '12 GB', cpu: 'Snapdragon 8 Gen 3', pin: '5.000 mAh', storage: '512 GB' },
-    iconType: 'phone',
-    iconColor: 'text-violet-600',
-    cardBg: 'bg-lilac-clay/40',
-  },
-  {
-    id: 'p3',
-    name: 'MacBook Pro 14" M3 Pro',
-    sku: 'APL-MBP14-M3-18',
-    category: 'Laptop',
-    status: 'READY_TO_SELL',
-    quantity: 15,
-    price: '52.990.000đ',
-    specs: { ram: '18 GB', cpu: 'Apple M3 Pro', storage: '512 GB SSD', display: '14.2" Liquid Retina XDR', gpu: '18-core GPU' },
-    iconType: 'laptop',
-    iconColor: 'text-slate-700',
-    cardBg: 'bg-mint-clay/40',
-  },
-  {
-    id: 'p4',
-    name: 'Dell XPS 15 OLED',
-    sku: 'DEL-XPS15-i9-32',
-    category: 'Laptop',
-    status: 'IN_TRANSIT',
-    quantity: 8,
-    price: '46.500.000đ',
-    specs: { ram: '32 GB', cpu: 'Intel Core i9-13900H', storage: '1 TB SSD', display: '15.6" OLED Touch', gpu: 'RTX 4060' },
-    iconType: 'laptop',
-    iconColor: 'text-blue-600',
-    cardBg: 'bg-sky-clay/40',
-  },
-  {
-    id: 'p5',
-    name: 'AirPods Pro 2nd Gen',
-    sku: 'APL-APP2-WHT',
-    category: 'Phụ kiện',
-    status: 'READY_TO_SELL',
-    quantity: 120,
-    price: '6.490.000đ',
-    specs: { pin: '30h (case)', color: 'Trắng sứ', compatibility: 'iOS / Android', material: 'Silicone mềm' },
-    iconType: 'accessory',
-    iconColor: 'text-rose-500',
-    cardBg: 'bg-pink-clay/35',
-  },
-  {
-    id: 'p6',
-    name: 'Xiaomi 14 Ultra',
-    sku: 'XIA-14U-512',
-    category: 'Điện thoại',
-    status: 'DEFECTIVE',
-    quantity: 5,
-    price: '28.990.000đ',
-    specs: { ram: '16 GB', cpu: 'Snapdragon 8 Gen 3', pin: '5.300 mAh', storage: '512 GB' },
-    iconType: 'phone',
-    iconColor: 'text-orange-500',
-    cardBg: 'bg-peach-clay/40',
-  },
-]
+function getTotalQuantity(inventory: ApiProduct['inventory']): number {
+  return inventory
+    .filter((inv) => inv.status === 'READY_TO_SELL')
+    .reduce((sum, inv) => sum + inv.quantity, 0)
+}
 
-const SPEC_FIELDS: Record<Exclude<Category, 'Tất cả'>, Array<{ key: keyof ProductSpec; label: string; icon: React.ReactNode }>> = {
-  'Điện thoại': [
-    { key: 'cpu', label: 'CPU / Chip', icon: <Cpu className="w-3 h-3" /> },
-    { key: 'ram', label: 'RAM', icon: <HardDrive className="w-3 h-3" /> },
-    { key: 'storage', label: 'Bộ nhớ trong', icon: <HardDrive className="w-3 h-3" /> },
-    { key: 'pin', label: 'Dung lượng Pin', icon: <Battery className="w-3 h-3" /> },
-  ],
-  Laptop: [
-    { key: 'cpu', label: 'CPU', icon: <Cpu className="w-3 h-3" /> },
-    { key: 'ram', label: 'RAM', icon: <HardDrive className="w-3 h-3" /> },
-    { key: 'gpu', label: 'GPU', icon: <Monitor className="w-3 h-3" /> },
-    { key: 'storage', label: 'Ổ cứng', icon: <HardDrive className="w-3 h-3" /> },
-    { key: 'display', label: 'Màn hình', icon: <Monitor className="w-3 h-3" /> },
-  ],
-  'Phụ kiện': [
-    { key: 'color', label: 'Màu sắc', icon: <Tag className="w-3 h-3" /> },
-    { key: 'material', label: 'Chất liệu', icon: <Tag className="w-3 h-3" /> },
-    { key: 'pin', label: 'Thời lượng Pin', icon: <Battery className="w-3 h-3" /> },
-    { key: 'compatibility', label: 'Tương thích', icon: <ScanLine className="w-3 h-3" /> },
-  ],
+function getPrimaryStatus(inventory: ApiProduct['inventory']): StockStatus {
+  if (inventory.length === 0) return 'READY_TO_SELL'
+  if (inventory.some((inv) => inv.status === 'READY_TO_SELL')) return 'READY_TO_SELL'
+  if (inventory.some((inv) => inv.status === 'IN_TRANSIT')) return 'IN_TRANSIT'
+  return 'DEFECTIVE'
+}
+
+/** Factory Method Pattern (Frontend): mapApiProductToUI */
+function mapApiProductToUI(p: ApiProduct): UIProduct {
+  const categoryName = p.category?.name ?? 'Unknown'
+
+  const iconTypeMap: Record<string, UIProduct['iconType']> = {
+    'Điện thoại': 'phone',
+    'Phone': 'phone',
+    'Laptop': 'laptop',
+    'Phụ kiện': 'accessory',
+    'Accessory': 'accessory',
+  }
+
+  const cardBgMap: Record<string, string> = {
+    'Điện thoại': 'bg-pink-clay/45',
+    'Phone': 'bg-pink-clay/45',
+    'Laptop': 'bg-mint-clay/40',
+    'Phụ kiện': 'bg-lilac-clay/40',
+    'Accessory': 'bg-lilac-clay/40',
+  }
+
+  const iconColorMap: Record<string, string> = {
+    'Điện thoại': 'text-rose-500',
+    'Laptop': 'text-slate-700',
+    'Phụ kiện': 'text-violet-600',
+  }
+
+  return {
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    category: categoryName,
+    status: getPrimaryStatus(p.inventory),
+    quantity: getTotalQuantity(p.inventory),
+    specs: (p.specifications as ProductSpec) ?? {},
+    iconType: iconTypeMap[categoryName] ?? 'accessory',
+    iconColor: iconColorMap[categoryName] ?? 'text-slate-600',
+    cardBg: cardBgMap[categoryName] ?? 'bg-sky-clay/40',
+    categoryId: p.category?.id ?? null,
+    supplierId: p.supplier?.id ?? null,
+    imageUrl: p.image_url,
+  }
 }
 
 // ─────────────────────────────────────────────
-// Product Icon Component (3D fat icons)
+// Strategy Pattern (Frontend): Spec field renderers
 // ─────────────────────────────────────────────
-function ProductIcon({ type, className }: { type: Product['iconType']; className?: string }) {
-  const base = cn('w-16 h-16', className)
-  if (type === 'phone')
-    return <Smartphone className={cn(base, 'animate-float-slow')} strokeWidth={1.4} />
-  if (type === 'laptop')
-    return <Laptop className={cn(base, 'animate-float')} strokeWidth={1.4} />
+interface SpecFieldDef {
+  key: string
+  label: string
+  icon: React.ReactNode
+  placeholder: string
+}
+
+const SPEC_FIELDS: Record<string, SpecFieldDef[]> = {
+  'Điện thoại': [
+    { key: 'display', label: 'Màn hình', icon: <Monitor className="w-3 h-3" />, placeholder: '6.7\" Super AMOLED' },
+    { key: 'os', label: 'Hệ điều hành', icon: <Cpu className="w-3 h-3" />, placeholder: 'Android 14 / iOS 17' },
+    { key: 'camera', label: 'Camera', icon: <ScanLine className="w-3 h-3" />, placeholder: '200MP + 10MP + 12MP' },
+    { key: 'chip', label: 'Chip / CPU', icon: <Cpu className="w-3 h-3" />, placeholder: 'Snapdragon 8 Gen 3' },
+    { key: 'ram', label: 'RAM', icon: <HardDrive className="w-3 h-3" />, placeholder: '12 GB' },
+    { key: 'battery', label: 'Dung lượng Pin', icon: <Battery className="w-3 h-3" />, placeholder: '5000 mAh' },
+    { key: 'storage', label: 'Bộ nhớ trong', icon: <HardDrive className="w-3 h-3" />, placeholder: '256 GB' },
+  ],
+  'Laptop': [
+    { key: 'cpu', label: 'CPU', icon: <Cpu className="w-3 h-3" />, placeholder: 'Intel Core i9-13900H' },
+    { key: 'ram', label: 'RAM', icon: <HardDrive className="w-3 h-3" />, placeholder: '32 GB DDR5' },
+    { key: 'storage', label: 'Ổ cứng', icon: <HardDrive className="w-3 h-3" />, placeholder: '1 TB SSD NVMe' },
+    { key: 'vga', label: 'VGA / GPU', icon: <Monitor className="w-3 h-3" />, placeholder: 'RTX 4070 8GB' },
+    { key: 'ports', label: 'Cổng kết nối', icon: <Tag className="w-3 h-3" />, placeholder: 'USB-C, HDMI, SD Card' },
+    { key: 'display', label: 'Màn hình', icon: <Monitor className="w-3 h-3" />, placeholder: '15.6\" 2K 165Hz' },
+  ],
+  'Phụ kiện': [
+    { key: 'type', label: 'Loại phụ kiện', icon: <Tag className="w-3 h-3" />, placeholder: 'Tai nghe / Ốp lưng...' },
+    { key: 'compatibility', label: 'Thiết bị tương thích', icon: <ScanLine className="w-3 h-3" />, placeholder: 'iPhone 15, Samsung S24' },
+    { key: 'color', label: 'Màu sắc', icon: <Tag className="w-3 h-3" />, placeholder: 'Trắng sứ' },
+    { key: 'material', label: 'Chất liệu', icon: <Tag className="w-3 h-3" />, placeholder: 'Nhôm / Silicone / Nhựa ABS' },
+    { key: 'battery', label: 'Thời lượng Pin', icon: <Battery className="w-3 h-3" />, placeholder: '30h (có hộp sạc)' },
+  ],
+}
+
+const CARD_SPEC_KEYS: Record<string, string[]> = {
+  'Điện thoại': ['chip', 'ram', 'battery', 'storage'],
+  'Laptop': ['cpu', 'ram', 'vga', 'storage'],
+  'Phụ kiện': ['type', 'compatibility', 'color'],
+}
+
+// ─────────────────────────────────────────────
+// Product Icon
+// ─────────────────────────────────────────────
+function ProductIcon({ type, className }: { type: UIProduct['iconType']; className?: string }) {
+  const base = cn('w-14 h-14', className)
+  if (type === 'phone') return <Smartphone className={cn(base, 'animate-float-slow')} strokeWidth={1.4} />
+  if (type === 'laptop') return <Laptop className={cn(base, 'animate-float')} strokeWidth={1.4} />
   return <Headphones className={cn(base, 'animate-float-delayed')} strokeWidth={1.4} />
 }
 
@@ -210,45 +208,50 @@ function StatusBadge({ status }: { status: StockStatus }) {
 }
 
 // ─────────────────────────────────────────────
-// Spec Tag (mini pastel bubble)
+// Spec Tag
 // ─────────────────────────────────────────────
 function SpecTag({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
     <div
-      className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-semibold text-slate-700', color)}
+      className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-semibold text-slate-700', color)}
       style={{ boxShadow: '-2px -2px 5px rgba(255,255,255,0.85), 2px 3px 7px rgba(17,24,39,0.08)' }}
     >
       {icon}
       <span className="opacity-60">{label}:</span>
-      <span>{value}</span>
+      <span className="font-bold">{value}</span>
     </div>
   )
 }
 
 // ─────────────────────────────────────────────
-// Product Card (Clay)
+// Product Card
 // ─────────────────────────────────────────────
 function ProductCard({ product, onEdit, onDelete }: {
-  product: Product
-  onEdit: (p: Product) => void
-  onDelete: (id: string) => void
+  product: UIProduct
+  onEdit: (p: UIProduct) => void
+  onDelete: (id: number) => void
 }) {
   const specColors = ['bg-mint-clay/70', 'bg-lilac-clay/70', 'bg-pink-clay/60', 'bg-sky-clay/70', 'bg-peach-clay/60']
-  const specEntries = Object.entries(product.specs)
+  const cardSpecKeys = CARD_SPEC_KEYS[product.category] ?? []
+  const specEntries = cardSpecKeys
+    .map((key) => ({ key, value: product.specs[key] }))
+    .filter((e) => e.value)
+
+  const fieldDefs = SPEC_FIELDS[product.category] ?? []
+  const getLabel = (key: string) => fieldDefs.find((f) => f.key === key)?.label ?? key.toUpperCase()
 
   return (
     <div
-      className={cn('clay-product-card rounded-card2 p-5 flex flex-col gap-4 relative overflow-hidden', product.cardBg)}
+      className={cn('clay-product-card rounded-card2 p-5 flex flex-col gap-4 relative overflow-hidden group', product.cardBg)}
       style={{
         boxShadow:
           '-10px -10px 24px rgba(255,255,255,0.92), 14px 18px 36px rgba(17,24,39,0.11), inset 0px 1px 0px rgba(255,255,255,0.88)',
       }}
     >
-      {/* Quick Actions */}
-      <div className="absolute top-4 right-4 flex gap-1.5 z-10">
+      <div className="absolute top-4 right-4 flex gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           onClick={() => onEdit(product)}
-          className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center transition-all active:scale-95 hover:scale-105"
+          className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center transition-all active:scale-95 hover:scale-110"
           style={{ boxShadow: '-3px -3px 7px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.10)' }}
           title="Sửa"
         >
@@ -256,7 +259,7 @@ function ProductCard({ product, onEdit, onDelete }: {
         </button>
         <button
           onClick={() => onDelete(product.id)}
-          className="w-7 h-7 rounded-full bg-pink-clay/80 flex items-center justify-center transition-all active:scale-95 hover:scale-105"
+          className="w-7 h-7 rounded-full bg-pink-clay/80 flex items-center justify-center transition-all active:scale-95 hover:scale-110"
           style={{ boxShadow: '-3px -3px 7px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.10)' }}
           title="Xóa"
         >
@@ -264,56 +267,50 @@ function ProductCard({ product, onEdit, onDelete }: {
         </button>
       </div>
 
-      {/* Product Icon + Status */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div
-          className="w-20 h-20 rounded-2xl bg-white/50 flex items-center justify-center"
+          className="w-[72px] h-[72px] rounded-2xl bg-white/50 flex items-center justify-center shrink-0"
           style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.85), 8px 10px 22px rgba(17,24,39,0.09), inset 0 1px 0 rgba(255,255,255,0.7)' }}
         >
           <ProductIcon type={product.iconType} className={product.iconColor} />
         </div>
 
-        {/* Spec Tags floating around */}
-        <div className="flex flex-col gap-1 items-end mt-1 pr-10">
-          {specEntries.slice(0, 3).map(([key, val], i) => (
+        <div className="flex flex-col gap-1 items-end flex-1 pt-1">
+          {specEntries.slice(0, 3).map((e, i) => (
             <SpecTag
-              key={key}
+              key={e.key}
               icon={<Tag className="w-2.5 h-2.5" />}
-              label={key.toUpperCase()}
-              value={val}
+              label={getLabel(e.key)}
+              value={e.value}
               color={specColors[i % specColors.length]}
             />
           ))}
         </div>
       </div>
 
-      {/* Product Info */}
       <div>
-        <p className="text-[15px] font-bold text-slate-900 leading-tight">{product.name}</p>
+        <p className="text-[15px] font-bold text-slate-900 leading-tight line-clamp-2">{product.name}</p>
         <p className="text-[11px] text-slate-500 mt-0.5 font-mono tracking-wide">SKU: {product.sku}</p>
       </div>
 
-      {/* Remaining Specs as tags */}
       {specEntries.length > 3 && (
         <div className="flex flex-wrap gap-1.5">
-          {specEntries.slice(3).map(([key, val], i) => (
+          {specEntries.slice(3).map((e, i) => (
             <SpecTag
-              key={key}
+              key={e.key}
               icon={<Tag className="w-2.5 h-2.5" />}
-              label={key.toUpperCase()}
-              value={val}
+              label={getLabel(e.key)}
+              value={e.value}
               color={specColors[(i + 3) % specColors.length]}
             />
           ))}
         </div>
       )}
 
-      {/* Footer: Status + Qty + Price */}
       <div className="flex items-center justify-between gap-2 mt-auto">
         <StatusBadge status={product.status} />
         <div className="text-right">
-          <p className="text-[12px] font-bold text-slate-900">{product.price}</p>
-          <p className="text-[10px] text-slate-500">{product.quantity} máy còn</p>
+          <p className="text-[10px] text-slate-500">{product.quantity} đơn vị</p>
         </div>
       </div>
     </div>
@@ -321,10 +318,10 @@ function ProductCard({ product, onEdit, onDelete }: {
 }
 
 // ─────────────────────────────────────────────
-// Summary Stat Cards (top row)
+// Stat Card
 // ─────────────────────────────────────────────
-function StatCard({ label, value, sub, color, icon }: {
-  label: string; value: string; sub: string; color: string; icon: React.ReactNode
+function StatCard({ label, value, sub, color, icon, loading }: {
+  label: string; value: number | string; sub: string; color: string; icon: React.ReactNode; loading?: boolean
 }) {
   return (
     <div
@@ -338,7 +335,11 @@ function StatCard({ label, value, sub, color, icon }: {
         >
           {icon}
         </div>
-        <p className="text-[30px] font-bold text-slate-900 leading-none">{value}</p>
+        {loading ? (
+          <Loader2 className="w-7 h-7 text-slate-400 animate-spin" />
+        ) : (
+          <p className="text-[30px] font-bold text-slate-900 leading-none">{value}</p>
+        )}
       </div>
       <div>
         <p className="text-[14px] font-bold text-slate-900">{label}</p>
@@ -349,7 +350,7 @@ function StatCard({ label, value, sub, color, icon }: {
 }
 
 // ─────────────────────────────────────────────
-// NavIcon (Sidebar)
+// NavIcon
 // ─────────────────────────────────────────────
 function NavIcon({ active, label, children }: { active?: boolean; label: string; children: React.ReactNode }) {
   return (
@@ -371,34 +372,6 @@ function NavIcon({ active, label, children }: { active?: boolean; label: string;
 }
 
 // ─────────────────────────────────────────────
-// PillButton
-// ─────────────────────────────────────────────
-function PillButton({ icon, iconBg, children, className, onClick }: {
-  icon?: React.ReactNode; iconBg?: string; children: React.ReactNode; className?: string; onClick?: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'h-10 rounded-full px-4 text-[13px] font-semibold inline-flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5',
-        className,
-      )}
-      style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 10px 14px 28px rgba(17,24,39,0.12)' }}
-    >
-      {icon && (
-        <span
-          className={cn('w-6 h-6 rounded-full inline-flex items-center justify-center', iconBg ?? 'bg-white/70')}
-          style={{ boxShadow: '-3px -3px 6px rgba(255,255,255,0.9), 4px 4px 10px rgba(17,24,39,0.1)' }}
-        >
-          {icon}
-        </span>
-      )}
-      <span className="leading-none">{children}</span>
-    </button>
-  )
-}
-
-// ─────────────────────────────────────────────
 // Filter Pill
 // ─────────────────────────────────────────────
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -407,9 +380,7 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
       onClick={onClick}
       className={cn(
         'h-9 rounded-full px-5 text-[13px] font-semibold transition-all active:scale-95',
-        active
-          ? 'bg-slate-900 text-white'
-          : 'bg-white text-slate-600 hover:text-slate-900 hover:-translate-y-0.5',
+        active ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:text-slate-900 hover:-translate-y-0.5',
       )}
       style={{
         boxShadow: active
@@ -423,21 +394,26 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
 }
 
 // ─────────────────────────────────────────────
-// Clay Inset Input
+// H4 Fix: Clay Input — Inner Shadow theo Guideline
+// Guideline: inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)
 // ─────────────────────────────────────────────
-function ClayInput({ label, value, onChange, placeholder, type = 'text' }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
+const CLAY_INNER_SHADOW = 'inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)'
+
+function ClayInput({ label, value, onChange, placeholder, type = 'text', required }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{label}</label>
+      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+        {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="w-full rounded-2xl bg-cream-bg px-4 py-3 text-[14px] font-medium text-slate-800 outline-none placeholder:text-slate-400 font-fredoka transition-shadow focus:ring-2 focus:ring-mint-clay/50"
-        style={{ boxShadow: 'inset 4px 4px 10px rgba(17,24,39,0.08), inset -4px -4px 10px rgba(255,255,255,0.80)' }}
+        style={{ boxShadow: CLAY_INNER_SHADOW }}
       />
     </div>
   )
@@ -446,165 +422,31 @@ function ClayInput({ label, value, onChange, placeholder, type = 'text' }: {
 // ─────────────────────────────────────────────
 // Clay Select
 // ─────────────────────────────────────────────
-function ClaySelect<T extends string>({ label, value, onChange, options }: {
-  label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[]
+function ClaySelect<T extends string | number>({ label, value, onChange, options, required }: {
+  label: string; value: T; onChange: (v: T) => void;
+  options: { value: T; label: string }[]; required?: boolean
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="w-full rounded-2xl bg-cream-bg px-4 py-3 text-[14px] font-medium text-slate-800 outline-none font-fredoka appearance-none cursor-pointer transition-shadow focus:ring-2 focus:ring-mint-clay/50"
-        style={{ boxShadow: 'inset 4px 4px 10px rgba(17,24,39,0.08), inset -4px -4px 10px rgba(255,255,255,0.80)' }}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
-// Clay Modal (Add / Edit)
-// ─────────────────────────────────────────────
-function ClayModal({ state, onClose, onSave }: {
-  state: ModalState
-  onClose: () => void
-  onSave: (product: Partial<Product>) => void
-}) {
-  const [form, setForm] = useState<Partial<Product>>(state.product ?? {
-    category: 'Điện thoại',
-    status: 'READY_TO_SELL',
-    specs: {},
-  })
-
-  const selectedCat = (form.category as Exclude<Category, 'Tất cả'>) ?? 'Điện thoại'
-  const specFields = SPEC_FIELDS[selectedCat]
-
-  const set = <K extends keyof Product>(k: K, v: Product[K]) =>
-    setForm((prev) => ({ ...prev, [k]: v }))
-
-  const setSpec = (k: keyof ProductSpec, v: string) =>
-    setForm((prev) => ({ ...prev, specs: { ...(prev.specs ?? {}), [k]: v } }))
-
-  return (
-    <div
-      className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(6px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div
-        className="modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-card bg-cream-bg"
-        style={{
-          boxShadow:
-            '-18px -18px 44px rgba(255,255,255,0.96), 28px 36px 72px rgba(17,24,39,0.16), inset 0px 1px 0px rgba(255,255,255,0.94)',
-        }}
-      >
-        {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 pb-0">
-          <div>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
-              {state.mode === 'add' ? 'Thêm mới' : 'Chỉnh sửa'}
-            </p>
-            <h2 className="text-[20px] font-bold text-slate-900">
-              {state.mode === 'add' ? '✦ Thêm Sản Phẩm Mới' : '✎ Chỉnh sửa Sản Phẩm'}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:bg-pink-clay/40"
-            style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 5px 6px 14px rgba(17,24,39,0.09)' }}
-          >
-            <X className="w-4 h-4 text-slate-600" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-6 flex flex-col gap-4">
-          {/* Basic Info */}
-          <ClayInput
-            label="Tên sản phẩm"
-            value={form.name ?? ''}
-            onChange={(v) => set('name', v)}
-            placeholder="Ví dụ: iPhone 15 Pro Max"
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <ClayInput
-              label="Mã SKU"
-              value={form.sku ?? ''}
-              onChange={(v) => set('sku', v)}
-              placeholder="APL-IP15PM-256"
-            />
-            <ClaySelect
-              label="Danh mục"
-              value={selectedCat}
-              onChange={(v) => set('category', v as any)}
-              options={[
-                { value: 'Điện thoại', label: '📱 Điện thoại' },
-                { value: 'Laptop', label: '💻 Laptop' },
-                { value: 'Phụ kiện', label: '🎧 Phụ kiện' },
-              ]}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <ClaySelect
-              label="Trạng thái"
-              value={form.status ?? 'READY_TO_SELL'}
-              onChange={(v) => set('status', v as StockStatus)}
-              options={[
-                { value: 'READY_TO_SELL', label: '✦ Sẵn sàng bán' },
-                { value: 'DEFECTIVE', label: '✕ Hỏng hóc' },
-                { value: 'IN_TRANSIT', label: '→ Đang luân chuyển' },
-              ]}
-            />
-            <ClayInput
-              label="Giá niêm yết"
-              value={form.price ?? ''}
-              onChange={(v) => set('price', v)}
-              placeholder="34.990.000đ"
-            />
-          </div>
-
-          {/* Dynamic JSON Spec Fields */}
-          <div
-            className="rounded-card2 p-4 bg-white/50"
-            style={{ boxShadow: 'inset 3px 3px 8px rgba(17,24,39,0.06), inset -3px -3px 8px rgba(255,255,255,0.75)' }}
-          >
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
-              📋 Thông số kỹ thuật — {selectedCat}
-            </p>
-            <div className="flex flex-col gap-3">
-              {specFields.map((field) => (
-                <ClayInput
-                  key={field.key}
-                  label={field.label}
-                  value={(form.specs as any)?.[field.key] ?? ''}
-                  onChange={(v) => setSpec(field.key, v)}
-                  placeholder={`Nhập ${field.label}...`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Modal Footer */}
-        <div className="flex gap-3 px-6 pb-6">
-          <button
-            onClick={onClose}
-            className="flex-1 h-11 rounded-full bg-white text-[14px] font-semibold text-slate-600 transition-all active:scale-95 hover:-translate-y-0.5"
-            style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.95), 8px 10px 22px rgba(17,24,39,0.09)' }}
-          >
-            Hủy bỏ
-          </button>
-          <button
-            onClick={() => onSave(form)}
-            className="flex-1 h-11 rounded-full bg-mint-clay text-[14px] font-bold text-slate-800 transition-all active:scale-95 hover:-translate-y-0.5"
-            style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.13), 0 2px 8px rgba(178,242,187,0.5)' }}
-          >
-            {state.mode === 'add' ? '✦ Thêm sản phẩm' : '✎ Lưu thay đổi'}
-          </button>
+    <div className="flex flex-col gap-1.5 min-w-0">
+      <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+        {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
+      </label>
+      <div className="relative group">
+        <select
+          value={String(value)}
+          onChange={(e) => {
+            const raw = e.target.value
+            onChange((typeof value === 'number' ? Number(raw) : raw) as T)
+          }}
+          className="w-full rounded-2xl bg-cream-bg px-4 py-3 text-[14px] font-medium text-slate-800 outline-none font-fredoka appearance-none cursor-pointer transition-all focus:ring-2 focus:ring-mint-clay/50 pr-10 hover:bg-white"
+          style={{ boxShadow: CLAY_INNER_SHADOW }}
+        >
+          {options.map((o) => (
+            <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
+          ))}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-hover:text-slate-600 transition-colors">
+          <ChevronDown size={16} />
         </div>
       </div>
     </div>
@@ -612,10 +454,220 @@ function ClayModal({ state, onClose, onSave }: {
 }
 
 // ─────────────────────────────────────────────
+// S2: Compound Component Pattern — Modal
+// Usage:
+//   <Modal onClose={...} saving={...}>
+//     <Modal.Header title="Thêm Sản Phẩm" />
+//     <Modal.Body>...</Modal.Body>
+//     <Modal.Footer onSave={...} onClose={...} />
+//   </Modal>
+// ─────────────────────────────────────────────
+interface ModalContextValue {
+  onClose: () => void
+  saving: boolean
+}
+const ModalContext = createContext<ModalContextValue>({ onClose: () => {}, saving: false })
+
+interface ModalComposition {
+  Header: typeof ModalHeader
+  Body: typeof ModalBody
+  Footer: typeof ModalFooter
+}
+
+function Modal({ children, onClose, saving }: {
+  children: React.ReactNode
+  onClose: () => void
+  saving: boolean
+}) {
+  return (
+    <ModalContext.Provider value={{ onClose, saving }}>
+      <div
+        className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backgroundColor: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(6px)' }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      >
+        <div
+          className="modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-card bg-cream-bg"
+          style={{
+            boxShadow: '-18px -18px 44px rgba(255,255,255,0.96), 28px 36px 72px rgba(17,24,39,0.16), inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </ModalContext.Provider>
+  )
+}
+
+function ModalHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+  const { onClose } = useContext(ModalContext)
+  return (
+    <div className="flex items-center justify-between p-6 pb-0">
+      <div>
+        {subtitle && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{subtitle}</p>}
+        <h2 className="text-[20px] font-bold text-slate-900">{title}</h2>
+      </div>
+      <button
+        onClick={onClose}
+        className="w-9 h-9 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:bg-pink-clay/40"
+        style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 5px 6px 14px rgba(17,24,39,0.09)' }}
+      >
+        <X className="w-4 h-4 text-slate-600" />
+      </button>
+    </div>
+  )
+}
+
+function ModalBody({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="p-6 flex flex-col gap-4">
+      {children}
+    </div>
+  )
+}
+
+function ModalFooter({ onSave, saveLabel = '✦ Thêm sản phẩm', cancelLabel = 'Hủy bỏ' }: {
+  onSave: () => void
+  saveLabel?: string
+  cancelLabel?: string
+}) {
+  const { onClose, saving } = useContext(ModalContext)
+  return (
+    <div className="flex gap-3 px-6 pb-6">
+      <button
+        onClick={onClose}
+        disabled={saving}
+        className="flex-1 h-11 rounded-full bg-white text-[14px] font-semibold text-slate-600 transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-50"
+        style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.95), 8px 10px 22px rgba(17,24,39,0.09)' }}
+      >
+        {cancelLabel}
+      </button>
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="flex-1 h-11 rounded-full bg-mint-clay text-[14px] font-bold text-slate-800 transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-60 flex items-center justify-center gap-2"
+        style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.13), 0 2px 8px rgba(178,242,187,0.5)' }}
+      >
+        {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+        {saving ? 'Đang lưu...' : saveLabel}
+      </button>
+    </div>
+  )
+}
+
+// Attach sub-components to Modal (Compound Component Pattern)
+;(Modal as unknown as ModalComposition).Header = ModalHeader
+;(Modal as unknown as ModalComposition).Body = ModalBody
+;(Modal as unknown as ModalComposition).Footer = ModalFooter
+const ModalComponent = Modal as typeof Modal & ModalComposition
+
+// ─────────────────────────────────────────────
+// ClayModal — Compound Component usage (S2)
+// ─────────────────────────────────────────────
+function ClayModal({ state, formOptions, onClose, onSave, saving }: {
+  state: ModalState
+  formOptions: FormOptions | null
+  onClose: () => void
+  onSave: (form: ModalForm) => Promise<void>
+  saving: boolean
+}) {
+  const firstCatId = formOptions?.categories[0]?.id ?? 1
+  const firstWhId = formOptions?.warehouses[0]?.id ?? 1
+
+  const [form, setForm] = useState<ModalForm>({
+    name: '', sku: '', category_id: firstCatId, supplier_id: undefined,
+    image_url: '', warehouse_id: firstWhId, specs: {},
+  })
+
+  useEffect(() => {
+    if (state.open) {
+      setForm({
+        name: '', sku: '', category_id: firstCatId, supplier_id: undefined,
+        image_url: '', warehouse_id: firstWhId, specs: {},
+      })
+    }
+  }, [state.open, firstCatId, firstWhId])
+
+  const selectedCategory = formOptions?.categories.find((c) => c.id === form.category_id)
+  const categoryName = selectedCategory?.name ?? 'Điện thoại'
+  const specFields = SPEC_FIELDS[categoryName] ?? SPEC_FIELDS['Phụ kiện']
+
+  const setSpec = (key: string, val: string) =>
+    setForm((prev) => ({ ...prev, specs: { ...prev.specs, [key]: val } }))
+
+  return (
+    <ModalComponent onClose={onClose} saving={saving}>
+      <ModalComponent.Header title="✦ Thêm Sản Phẩm Mới" subtitle="Thêm mới" />
+      <ModalComponent.Body>
+        <ClayInput required label="Tên sản phẩm" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Ví dụ: iPhone 15 Pro Max" />
+
+        <div className="grid grid-cols-2 gap-3">
+          <ClayInput required label="Mã SKU" value={form.sku} onChange={(v) => setForm((f) => ({ ...f, sku: v }))} placeholder="APL-IP15PM-256" />
+          {formOptions && (
+            <ClaySelect<number>
+              required
+              label="Danh mục"
+              value={form.category_id}
+              onChange={(v) => setForm((f) => ({ ...f, category_id: v, specs: {} }))}
+              options={formOptions.categories.map((c) => ({ value: c.id, label: c.name }))}
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {formOptions && (
+            <ClaySelect<number>
+              label="Nhà cung cấp"
+              value={form.supplier_id ?? 0}
+              onChange={(v) => setForm((f) => ({ ...f, supplier_id: v === 0 ? undefined : v }))}
+              options={[
+                { value: 0, label: '— Không có —' },
+                ...formOptions.suppliers.map((s) => ({ value: s.id, label: s.company_name })),
+              ]}
+            />
+          )}
+          {formOptions && (
+            <ClaySelect<number>
+              required
+              label="Kho khởi tạo"
+              value={form.warehouse_id}
+              onChange={(v) => setForm((f) => ({ ...f, warehouse_id: v }))}
+              options={formOptions.warehouses.map((w) => ({ value: w.id, label: w.name }))}
+            />
+          )}
+        </div>
+
+        {/* Dynamic JSON Spec Fields (Strategy Pattern) */}
+        <div
+          className="rounded-card2 p-4 bg-white/50"
+          style={{ boxShadow: CLAY_INNER_SHADOW }}
+        >
+          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+            📋 Thông số kỹ thuật — {categoryName}
+          </p>
+          <div className="flex flex-col gap-3">
+            {specFields.map((field) => (
+              <ClayInput
+                key={field.key}
+                label={`${field.label}${['display','os','camera','chip','ram','battery','cpu','storage','vga','ports','type','compatibility'].includes(field.key) ? ' *' : ''}`}
+                value={form.specs[field.key] ?? ''}
+                onChange={(v) => setSpec(field.key, v)}
+                placeholder={field.placeholder}
+              />
+            ))}
+          </div>
+        </div>
+      </ModalComponent.Body>
+      <ModalComponent.Footer onSave={() => onSave(form)} />
+    </ModalComponent>
+  )
+}
+
+// ─────────────────────────────────────────────
 // Delete Confirm Modal
 // ─────────────────────────────────────────────
-function DeleteModal({ productName, onClose, onConfirm }: {
-  productName: string; onClose: () => void; onConfirm: () => void
+function DeleteModal({ productName, onClose, onConfirm, deleting }: {
+  productName: string; onClose: () => void; onConfirm: () => void; deleting: boolean
 }) {
   return (
     <div
@@ -642,17 +694,20 @@ function DeleteModal({ productName, onClose, onConfirm }: {
         <div className="flex gap-3 w-full">
           <button
             onClick={onClose}
-            className="flex-1 h-10 rounded-full bg-white text-[13px] font-semibold text-slate-600 transition-all active:scale-95"
+            disabled={deleting}
+            className="flex-1 h-10 rounded-full bg-white text-[13px] font-semibold text-slate-600 transition-all active:scale-95 disabled:opacity-50"
             style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
           >
             Giữ lại
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 h-10 rounded-full bg-rose-400 text-[13px] font-bold text-white transition-all active:scale-95"
+            disabled={deleting}
+            className="flex-1 h-10 rounded-full bg-rose-400 text-[13px] font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ boxShadow: '0 4px 14px rgba(251,113,133,0.4)' }}
           >
-            Xóa ngay
+            {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {deleting ? 'Đang xóa...' : 'Xóa ngay'}
           </button>
         </div>
       </div>
@@ -661,97 +716,101 @@ function DeleteModal({ productName, onClose, onConfirm }: {
 }
 
 // ─────────────────────────────────────────────
-// MAIN PAGE
+// Toast Notification
 // ─────────────────────────────────────────────
-export default function ProductManagement() {
-  const [activeCategory, setActiveCategory] = useState<Category>('Tất cả')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [products, setProducts] = useState<Product[]>(PRODUCTS)
-  const [modal, setModal] = useState<ModalState>({ open: false, mode: 'add', product: null })
-  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+type ToastType = 'success' | 'error'
+function Toast({ message, type, onClose }: { message: string; type: ToastType; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500)
+    return () => clearTimeout(t)
+  }, [onClose])
 
-  const categories: Category[] = ['Tất cả', 'Điện thoại', 'Laptop', 'Phụ kiện']
-
-  const stats = useMemo(() => ({
-    total: products.length,
-    readyCount: products.filter((p) => p.status === 'READY_TO_SELL').length,
-    defectiveCount: products.filter((p) => p.status === 'DEFECTIVE').length,
-    inTransitCount: products.filter((p) => p.status === 'IN_TRANSIT').length,
-  }), [products])
-
-  const filtered = useMemo(() =>
-    products.filter((p) => {
-      const matchCat = activeCategory === 'Tất cả' || p.category === activeCategory
-      const q = searchQuery.toLowerCase()
-      const matchSearch = !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-      return matchCat && matchSearch
-    }),
-    [products, activeCategory, searchQuery],
+  return (
+    <div
+      className={cn(
+        'fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl px-5 py-4 text-[14px] font-semibold shadow-2xl transition-all animate-slide-up',
+        type === 'success' ? 'bg-mint-clay text-emerald-900' : 'bg-pink-clay text-rose-900',
+      )}
+      style={{ boxShadow: '0 8px 32px rgba(17,24,39,0.18)' }}
+    >
+      {type === 'success' ? '✦' : '✕'} {message}
+      <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">
+        <X className="w-4 h-4" />
+      </button>
+    </div>
   )
+}
 
-  const openAdd = () => setModal({
-    open: true,
-    mode: 'add',
-    product: { category: 'Điện thoại', status: 'READY_TO_SELL', specs: {} },
-  })
+// ─────────────────────────────────────────────
+// PRESENTER — Pure render, receives all data as props
+// (H2: Container/Presenter split)
+// ─────────────────────────────────────────────
+interface ProductManagementViewProps {
+  products: UIProduct[]
+  stats: ApiProductStats | null
+  formOptions: FormOptions | null
+  modal: ModalState
+  deleteTarget: UIProduct | null
+  loadingProducts: boolean
+  loadingStats: boolean
+  saving: boolean
+  deleting: boolean
+  toast: { message: string; type: ToastType } | null
+  error: string | null
+  activeCategory: CategoryFilter
+  searchQuery: string
+  onCategoryChange: (cat: CategoryFilter) => void
+  onSearchChange: (q: string) => void
+  onOpenAdd: () => void
+  onEdit: (p: UIProduct) => void
+  onDelete: (id: number) => void
+  onModalClose: () => void
+  onModalSave: (form: ModalForm) => Promise<void>
+  onDeleteClose: () => void
+  onDeleteConfirm: () => void
+  onToastClose: () => void
+  onRefresh: () => void
+}
 
-  const openEdit = (p: Product) => setModal({ open: true, mode: 'edit', product: { ...p } })
+function ProductManagementView({
+  products, stats, formOptions, modal, deleteTarget,
+  loadingProducts, loadingStats, saving, deleting, toast, error,
+  activeCategory, searchQuery,
+  onCategoryChange, onSearchChange, onOpenAdd, onEdit, onDelete,
+  onModalClose, onModalSave, onDeleteClose, onDeleteConfirm, onToastClose, onRefresh,
+}: ProductManagementViewProps) {
+  const categories: CategoryFilter[] = ['Tất cả', 'Điện thoại', 'Laptop', 'Phụ kiện']
 
-  const handleSave = (form: Partial<Product>) => {
-    if (modal.mode === 'add') {
-      const newProduct: Product = {
-        id: `p${Date.now()}`,
-        name: form.name ?? 'Sản phẩm mới',
-        sku: form.sku ?? 'SKU-000',
-        category: form.category as Exclude<Category, 'Tất cả'> ?? 'Điện thoại',
-        status: form.status ?? 'READY_TO_SELL',
-        quantity: 0,
-        price: form.price ?? '0đ',
-        specs: form.specs ?? {},
-        iconType: form.category === 'Laptop' ? 'laptop' : form.category === 'Phụ kiện' ? 'accessory' : 'phone',
-        iconColor: 'text-slate-700',
-        cardBg: form.category === 'Laptop' ? 'bg-mint-clay/40' : form.category === 'Phụ kiện' ? 'bg-pink-clay/35' : 'bg-pink-clay/45',
-      }
-      setProducts((prev) => [newProduct, ...prev])
-    } else {
-      setProducts((prev) => prev.map((p) => (p.id === (form as Product).id ? { ...p, ...form } as Product : p)))
-    }
-    setModal({ open: false, mode: 'add', product: null })
-  }
-
-  const handleDelete = (id: string) => {
-    const target = products.find((p) => p.id === id)
-    if (target) setDeleteTarget(target)
-  }
-
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id))
-      setDeleteTarget(null)
-    }
-  }
+  const filtered = useMemo(() => {
+    if (!searchQuery) return products
+    const q = searchQuery.toLowerCase()
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
+    )
+  }, [products, searchQuery])
 
   return (
     <div className="min-h-screen font-fredoka" style={{ backgroundColor: '#FDFBF7' }}>
       <div className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="flex gap-6">
 
-          {/* ── Sidebar ─────────────────────────────────── */}
+          {/* ── Sidebar ─────────────────────────── */}
           <aside className="shrink-0">
             <div
               className="w-[72px] rounded-[36px] bg-cream-bg px-3 py-5 flex flex-col items-center gap-5"
               style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.95), 12px 16px 36px rgba(17,24,39,0.10)' }}
             >
-              <div
-                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm"
+              <Link
+                to="/"
+                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm active:scale-95 transition-transform"
                 style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.14)' }}
               >
                 F4
-              </div>
+              </Link>
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon>
+              <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon>
-              <NavIcon label="Sản phẩm" active><Package className="w-5 h-5" /></NavIcon>
+              <Link to="/products"><NavIcon label="Sản phẩm" active><Package className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
               <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
               <div className="flex-1" />
@@ -760,30 +819,29 @@ export default function ProductManagement() {
             </div>
           </aside>
 
-          {/* ── Main Content ─────────────────────────────── */}
+          {/* ── Main Content ─────────────────── */}
           <main className="flex-1 min-w-0">
 
-            {/* ── Header ───────────────────────────────── */}
+            {/* ── Header ─── */}
             <header className="flex items-center justify-between gap-4 mb-6">
               <div>
                 <span
                   className="text-[11px] font-semibold text-slate-400 bg-white rounded-full px-3 py-1"
                   style={{ boxShadow: '-2px -2px 6px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.07)' }}
                 >
-                  F4 Warehouse · Kho A-12 Thủ Đức
+                  F4 Warehouse · Quản lý kho
                 </span>
                 <h1 className="text-2xl font-bold text-slate-900 mt-1">
                   Quản lý Sản phẩm{' '}
                   <span className="text-emerald-600 bg-mint-clay/40 px-3 py-0.5 rounded-full text-lg">
-                    Kho A-12 Thủ Đức
+                    {stats ? `${stats.total_products} SKU` : '—'}
                   </span>
                 </h1>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  {stats.total} sản phẩm · {stats.readyCount} sẵn sàng bán
+                  Tổng tồn kho: {stats?.total_quantity ?? '—'} đơn vị
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {/* Search */}
                 <div
                   className="hidden lg:flex items-center gap-2 rounded-full bg-white px-4 py-2.5 w-[260px]"
                   style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.95), 8px 12px 24px rgba(17,24,39,0.09)' }}
@@ -793,180 +851,296 @@ export default function ProductManagement() {
                     className="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400 font-fredoka"
                     placeholder="Tìm theo tên, SKU..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => onSearchChange(e.target.value)}
                   />
                 </div>
-                <PillButton
-                  className="bg-pink-clay/50 text-slate-800"
-                  iconBg="bg-pink-clay"
-                  icon={<Warehouse className="w-3.5 h-3.5 text-rose-600" />}
-                >
-                  Chọn Kho
-                </PillButton>
-                <PillButton
-                  onClick={openAdd}
-                  className="bg-mint-clay/70 text-slate-800"
-                  iconBg="bg-mint-clay"
-                  icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}
-                >
-                  Thêm Sản Phẩm Mới
-                </PillButton>
                 <button
-                  className="relative w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
+                  onClick={onRefresh}
+                  className="w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
+                  title="Làm mới"
                 >
-                  <Bell className="w-5 h-5 text-slate-700" />
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-rose-400 ring-2 ring-cream-bg" />
+                  <RefreshCw className="w-4 h-4 text-slate-500" />
                 </button>
                 <button
-                  className="w-10 h-10 rounded-full bg-lilac-clay flex items-center justify-center transition-all active:scale-95 text-xs font-bold text-slate-700"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
+                  className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
+                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
                 >
-                  VT
+                  <Bell className="w-4 h-4 text-slate-500" />
+                </button>
+                <button
+                  onClick={onOpenAdd}
+                  className="h-10 rounded-full px-5 text-[13px] font-bold bg-mint-clay text-slate-800 inline-flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5"
+                  style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.12)' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Thêm sản phẩm
                 </button>
               </div>
             </header>
 
-            {/* ── ROW 1: Stat Cards (Bento) ─────────────── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+            {/* ── Stats Row ── */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <StatCard
-                label="Tổng sản phẩm"
-                value={String(stats.total)}
-                sub="Trong kho A-12"
-                color="bg-white"
-                icon={<Box className="w-5 h-5 text-slate-700" />}
+                label="Điện thoại"
+                value={stats?.phones.product_count ?? 0}
+                sub={`${stats?.phones.total_quantity ?? 0} máy tồn kho`}
+                color="bg-pink-clay/30"
+                icon={<Smartphone className="w-5 h-5 text-rose-500" />}
+                loading={loadingStats}
               />
               <StatCard
-                label="Sẵn sàng bán"
-                value={String(stats.readyCount)}
-                sub="Tình trạng tốt"
-                color="bg-mint-clay/40"
-                icon={<Package className="w-5 h-5 text-emerald-700" />}
+                label="Laptop"
+                value={stats?.laptops.product_count ?? 0}
+                sub={`${stats?.laptops.total_quantity ?? 0} máy tồn kho`}
+                color="bg-mint-clay/30"
+                icon={<Laptop className="w-5 h-5 text-emerald-600" />}
+                loading={loadingStats}
               />
               <StatCard
-                label="Hỏng hóc"
-                value={String(stats.defectiveCount)}
-                sub="Cần xử lý"
-                color="bg-pink-clay/40"
-                icon={<Trash2 className="w-5 h-5 text-rose-600" />}
-              />
-              <StatCard
-                label="Đang luân chuyển"
-                value={String(stats.inTransitCount)}
-                sub="Đang vận chuyển"
-                color="bg-lilac-clay/40"
-                icon={<Truck className="w-5 h-5 text-purple-600 animate-float" />}
+                label="Phụ kiện"
+                value={stats?.accessories.product_count ?? 0}
+                sub={`${stats?.accessories.total_quantity ?? 0} đơn vị tồn kho`}
+                color="bg-lilac-clay/30"
+                icon={<Headphones className="w-5 h-5 text-violet-500" />}
+                loading={loadingStats}
               />
             </div>
 
-            {/* ── ROW 2: Filter Pills + Sort ─────────────── */}
-            <div className="flex items-center justify-between gap-4 mb-5">
-              <div className="flex items-center gap-2 flex-wrap">
-                {categories.map((cat) => (
-                  <FilterPill
-                    key={cat}
-                    label={cat}
-                    active={activeCategory === cat}
-                    onClick={() => setActiveCategory(cat)}
-                  />
-                ))}
-              </div>
-              <button
-                className="h-9 rounded-full bg-white px-4 text-[13px] font-semibold text-slate-600 inline-flex items-center gap-2 transition-all active:scale-95 hover:-translate-y-0.5"
-                style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.95), 8px 10px 22px rgba(17,24,39,0.09)' }}
-              >
-                <Filter className="w-3.5 h-3.5" />
-                Bộ lọc
-              </button>
+            {/* ── Filter Pills ── */}
+            <div className="flex items-center gap-3 mb-6 flex-wrap">
+              <Filter className="w-4 h-4 text-slate-400" />
+              {categories.map((cat) => (
+                <FilterPill
+                  key={cat}
+                  label={cat}
+                  active={activeCategory === cat}
+                  onClick={() => onCategoryChange(cat)}
+                />
+              ))}
+              <span className="ml-auto text-[12px] text-slate-400 font-medium">
+                {filtered.length} sản phẩm
+              </span>
             </div>
 
-            {/* ── ROW 3: Product Grid (Bento) ─────────────── */}
-            {filtered.length === 0 ? (
-              <div
-                className="rounded-card bg-white flex flex-col items-center justify-center py-20 gap-4"
-                style={{ boxShadow: '-10px -10px 24px rgba(255,255,255,0.95), 16px 20px 40px rgba(17,24,39,0.09)' }}
-              >
-                <div
-                  className="w-16 h-16 rounded-card2 bg-cream-bg flex items-center justify-center"
-                  style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.08)' }}
-                >
-                  <PackageSearch className="w-7 h-7 text-slate-400" />
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-slate-700">Không tìm thấy sản phẩm</p>
-                  <p className="text-[13px] text-slate-400 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-                </div>
-                <button
-                  onClick={openAdd}
-                  className="h-10 rounded-full bg-mint-clay/70 px-5 text-[13px] font-bold text-slate-800 transition-all active:scale-95"
-                  style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.10)' }}
-                >
-                  + Thêm sản phẩm đầu tiên
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {filtered.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onEdit={openEdit}
-                    onDelete={handleDelete}
-                  />
-                ))}
-
-                {/* Add New Card (Bento Slot) */}
-                <button
-                  onClick={openAdd}
-                  className="clay-product-card rounded-card2 border-2 border-dashed border-slate-200/80 flex flex-col items-center justify-center gap-3 min-h-[280px] transition-all hover:border-mint-clay/60 group"
-                  style={{ boxShadow: 'inset 4px 4px 12px rgba(17,24,39,0.05), inset -4px -4px 12px rgba(255,255,255,0.6)' }}
-                >
-                  <div
-                    className="w-14 h-14 rounded-2xl bg-mint-clay/30 flex items-center justify-center transition-all group-hover:bg-mint-clay/60 group-hover:scale-110"
-                    style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.09)' }}
-                  >
-                    <Plus className="w-6 h-6 text-emerald-700" />
-                  </div>
-                  <p className="text-[13px] font-bold text-slate-400 group-hover:text-slate-600 transition-colors">
-                    Thêm sản phẩm mới
-                  </p>
-                </button>
+            {/* ── Error Banner ── */}
+            {error && (
+              <div className="flex items-center gap-3 rounded-2xl bg-pink-clay/40 px-5 py-4 mb-6 text-rose-800 text-[13px] font-semibold">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                {error}
+                <button onClick={onRefresh} className="ml-auto underline">Thử lại</button>
               </div>
             )}
 
-            {/* Results count */}
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-[12px] text-slate-400">
-                Hiển thị <span className="font-bold text-slate-600">{filtered.length}</span> / {products.length} sản phẩm
-              </p>
-              <button className="flex items-center gap-1 text-[12px] font-semibold text-slate-400 hover:text-slate-600 transition-colors">
-                Xem tất cả giao dịch
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
+            {/* ── Bento Grid ── */}
+            {loadingProducts ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="flex flex-col items-center gap-4 text-slate-400">
+                  <Loader2 className="w-10 h-10 animate-spin" />
+                  <p className="text-[14px] font-medium">Đang tải sản phẩm...</p>
+                </div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 gap-4">
+                <Box className="w-16 h-16 text-slate-300" />
+                <p className="text-[15px] text-slate-400 font-medium">
+                  {error ? 'Không thể tải dữ liệu' : 'Không có sản phẩm nào'}
+                </p>
+                <button
+                  onClick={onOpenAdd}
+                  className="h-10 rounded-full px-5 text-[13px] font-bold bg-mint-clay text-slate-800 inline-flex items-center gap-2"
+                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.10)' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Thêm sản phẩm đầu tiên
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )}
           </main>
         </div>
       </div>
 
-      {/* ── Clay Modal (Add / Edit) ────────────────── */}
-      {modal.open && modal.product && (
+      {/* ── Modals ── */}
+      {modal.open && (
         <ClayModal
-          key={modal.mode + (modal.product as any)?.id}
           state={modal}
-          onClose={() => setModal({ open: false, mode: 'add', product: null })}
-          onSave={handleSave}
+          formOptions={formOptions}
+          onClose={onModalClose}
+          onSave={onModalSave}
+          saving={saving}
         />
       )}
 
-      {/* ── Delete Confirm Modal ───────────────────── */}
       {deleteTarget && (
         <DeleteModal
           productName={deleteTarget.name}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={confirmDelete}
+          onClose={onDeleteClose}
+          onConfirm={onDeleteConfirm}
+          deleting={deleting}
+        />
+      )}
+
+      {/* ── Toast ── */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={onToastClose}
         />
       )}
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// CONTAINER — Xử lý data fetching + business logic
+// (H2: Container/Presenter Pattern)
+// ─────────────────────────────────────────────
+export default function ProductManagement() {
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('Tất cả')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [formOptions, setFormOptions] = useState<FormOptions | null>(null)
+  const [modal, setModal] = useState<ModalState>({ open: false, mode: 'add', productId: null })
+  const [deleteTarget, setDeleteTarget] = useState<UIProduct | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
+
+  // Lấy warehouse context từ global store (S1)
+  const { selectedWarehouseId } = useWarehouseStore()
+
+  // Xác định category_id từ activeCategory filter
+  const categoryId = useMemo(() => {
+    if (activeCategory === 'Tất cả') return undefined
+    if (formOptions?.categories) {
+      return formOptions.categories.find((c) => c.name === activeCategory)?.id
+    }
+    return undefined
+  }, [activeCategory, formOptions])
+
+  // Custom Hooks thay thế inline fetch logic (S3 / H2)
+  const { products: rawProducts, loading: loadingProducts, error, refetch: refetchProducts } = useProducts({
+    category_id: categoryId,
+    warehouse_id: selectedWarehouseId ?? undefined,
+    search: searchQuery || undefined,
+    limit: 50,
+  })
+  const { stats, loading: loadingStats, refetch: refetchStats } = useProductStats(selectedWarehouseId ?? undefined)
+
+  const products = useMemo(() => rawProducts.map(mapApiProductToUI), [rawProducts])
+
+  // ── Fetch form options ──
+  const fetchFormOptions = useCallback(async () => {
+    try {
+      const opts = await productApiService.getFormOptions()
+      setFormOptions(opts)
+    } catch (err) {
+      console.error('[FormOptions] Error:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchFormOptions()
+  }, [fetchFormOptions])
+
+  const handleRefresh = useCallback(() => {
+    refetchProducts()
+    refetchStats()
+  }, [refetchProducts, refetchStats])
+
+  const handleSave = useCallback(async (form: ModalForm) => {
+    setSaving(true)
+    try {
+      const categoryName = formOptions?.categories.find((c) => c.id === form.category_id)?.name ?? ''
+      const specFields = SPEC_FIELDS[categoryName] ?? []
+      const cleanSpecs: Record<string, string> = {}
+      specFields.forEach((f) => {
+        const v = form.specs[f.key]
+        if (v && v.trim()) cleanSpecs[f.key] = v.trim()
+      })
+
+      const payload: CreateProductPayload = {
+        name: form.name.trim(),
+        sku: form.sku.trim(),
+        category_id: form.category_id,
+        supplier_id: form.supplier_id,
+        image_url: form.image_url.trim() || undefined,
+        specifications: cleanSpecs,
+        warehouse_id: form.warehouse_id,
+      }
+
+      await productApiService.createProduct(payload)
+      setToast({ message: `Thêm "${form.name}" thành công! 🎉`, type: 'success' })
+      setModal({ open: false, mode: 'add', productId: null })
+      refetchProducts()
+      refetchStats()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi khi thêm sản phẩm'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setSaving(false)
+    }
+  }, [formOptions, refetchProducts, refetchStats])
+
+  const handleDelete = useCallback((id: number) => {
+    const target = products.find((p) => p.id === id)
+    if (target) setDeleteTarget(target)
+  }, [products])
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await productApiService.deleteProduct(deleteTarget.id)
+      setToast({ message: `Đã xóa "${deleteTarget.name}"`, type: 'success' })
+      setDeleteTarget(null)
+      refetchProducts()
+      refetchStats()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi khi xóa sản phẩm'
+      setToast({ message: msg, type: 'error' })
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteTarget, refetchProducts, refetchStats])
+
+  return (
+    <ProductManagementView
+      products={products}
+      stats={stats}
+      formOptions={formOptions}
+      modal={modal}
+      deleteTarget={deleteTarget}
+      loadingProducts={loadingProducts}
+      loadingStats={loadingStats}
+      saving={saving}
+      deleting={deleting}
+      toast={toast}
+      error={error}
+      activeCategory={activeCategory}
+      searchQuery={searchQuery}
+      onCategoryChange={setActiveCategory}
+      onSearchChange={setSearchQuery}
+      onOpenAdd={() => setModal({ open: true, mode: 'add', productId: null })}
+      onEdit={() => setModal({ open: true, mode: 'add', productId: null })}
+      onDelete={handleDelete}
+      onModalClose={() => setModal({ open: false, mode: 'add', productId: null })}
+      onModalSave={handleSave}
+      onDeleteClose={() => setDeleteTarget(null)}
+      onDeleteConfirm={confirmDelete}
+      onToastClose={() => setToast(null)}
+      onRefresh={handleRefresh}
+    />
   )
 }

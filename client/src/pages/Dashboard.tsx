@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -26,6 +27,8 @@ import {
   Warehouse,
   Zap,
 } from 'lucide-react'
+
+import { useDashboardData } from '../hooks/useDashboardData'
 
 // ─────────────────────────────────────────────
 // Types
@@ -142,14 +145,17 @@ function PillButton({
   iconBg,
   children,
   className,
+  onClick,
 }: {
   icon?: React.ReactNode
   iconBg?: string
   children: React.ReactNode
   className?: string
+  onClick?: () => void
 }) {
   return (
     <button
+      onClick={onClick}
       className={cn(
         'h-10 rounded-full px-4 text-[13px] font-semibold inline-flex items-center gap-2 transition-all active:scale-95',
         className,
@@ -172,9 +178,10 @@ function PillButton({
 // ─────────────────────────────────────────────
 // NavIcon
 // ─────────────────────────────────────────────
-function NavIcon({ active, label, children }: { active?: boolean; label: string; children: React.ReactNode }) {
+function NavIcon({ active, label, children, onClick }: { active?: boolean; label: string; children: React.ReactNode; onClick?: () => void }) {
   return (
     <button
+      onClick={onClick}
       aria-label={label}
       className={cn(
         'w-11 h-11 rounded-2xl flex items-center justify-center transition-all active:scale-95',
@@ -307,8 +314,9 @@ function ProductStockCard({
 // MAIN DASHBOARD
 // ─────────────────────────────────────────────
 export default function Dashboard() {
-  const chartData = useMemo(
-    () => [
+  const { stats, healthSpeed, healthDefect, activities, alerts, loading } = useDashboardData()
+
+  const chartData = useMemo(() => [
       { day: 'T2', v: 38, fill: 'rgba(178,242,187,0.55)' },
       { day: 'T3', v: 56, fill: 'rgba(255,180,195,0.65)' },
       { day: 'T4', v: 48, fill: 'rgba(200,168,240,0.65)' },
@@ -316,59 +324,43 @@ export default function Dashboard() {
       { day: 'T6', v: 62, fill: 'rgba(255,190,200,0.60)' },
       { day: 'T7', v: 74, fill: 'rgba(196,155,252,0.75)' },
       { day: 'CN', v: 28, fill: 'rgba(178,242,187,0.50)' },
-    ],
-    [],
-  )
+    ], [])
 
-  const transactions: TransactionEntity[] = useMemo(
-    () => [
-      {
-        id: 't1',
-        actorName: 'Agent Smith',
-        actorTag: 'AG',
-        actorBg: 'bg-mint-clay',
-        activityType: 'CHU KỲ LẤY HÀNG',
+  const displayActivities: TransactionEntity[] = useMemo(() => {
+    if (!activities || activities.length === 0) {
+      return [
+        {
+          id: 't1',
+          actorName: 'Agent Smith',
+          actorTag: 'AG',
+          actorBg: 'bg-mint-clay',
+          activityType: 'CHU KỲ LẤY HÀNG' as ActivityType,
+          activityBg: 'bg-pink-clay/70',
+          activityText: 'text-rose-700',
+          location: 'Dãy B, Ô 14',
+          progressPct: 75,
+        }
+      ]
+    }
+    return activities.slice(0, 4).map((act, i) => {
+      const colors = ['bg-mint-clay', 'bg-lilac-clay', 'bg-sky-clay', 'bg-peach-clay']
+      const typeText = act.type === 'INBOUND' ? 'NHẬP HÀNG' : act.type === 'OUTBOUND' ? 'CHU KỲ LẤY HÀNG' : 'ĐANG BỔ SUNG'
+      const tag = act.creator?.full_name ? act.creator.full_name.substring(0, 2).toUpperCase() : 'NV'
+      return {
+        id: act.id.toString(),
+        actorName: act.creator?.full_name || 'System Worker',
+        actorTag: tag,
+        actorBg: colors[i % colors.length],
+        activityType: typeText as ActivityType,
         activityBg: 'bg-pink-clay/70',
-        activityText: 'text-rose-700',
-        location: 'Dãy B, Ô 14',
-        progressPct: 75,
-      },
-      {
-        id: 't2',
-        actorName: 'Bot-900',
-        actorTag: 'BT',
-        actorBg: 'bg-lilac-clay',
-        activityType: 'ĐANG BỔ SUNG',
-        activityBg: 'bg-lilac-clay/60',
-        activityText: 'text-purple-700',
-        location: 'Dock-B-Inbound',
-        progressPct: 22,
-      },
-      {
-        id: 't3',
-        actorName: 'Ops Team',
-        actorTag: 'OP',
-        actorBg: 'bg-sky-clay',
-        activityType: 'ĐANG KIỂM KÊ',
-        activityBg: 'bg-sky-200/60',
-        activityText: 'text-blue-700',
-        location: 'Aisle-9-F',
-        progressPct: 48,
-      },
-      {
-        id: 't4',
-        actorName: 'Robot-X2',
-        actorTag: 'RX',
-        actorBg: 'bg-peach-clay',
-        activityType: 'NHẬP HÀNG',
-        activityBg: 'bg-orange-100',
-        activityText: 'text-orange-700',
-        location: 'Rack-12-G',
-        progressPct: 92,
-      },
-    ],
-    [],
-  )
+        activityText: 'text-slate-700',
+        location: `Giao dịch ${act.code}`,
+        progressPct: 100,
+      }
+    })
+  }, [activities])
+
+  if (loading && !stats) return <div className="p-10 font-fredoka text-center">Đang tải DLI (Dashboard Live Intelligence)...</div>
 
   return (
     <div className="min-h-screen font-fredoka" style={{ backgroundColor: '#FDFBF7' }}>
@@ -381,16 +373,17 @@ export default function Dashboard() {
               className="w-[72px] rounded-[36px] bg-cream-bg px-3 py-5 flex flex-col items-center gap-5"
               style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.95), 12px 16px 36px rgba(17,24,39,0.10)' }}
             >
-              <div
-                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm"
+              <Link
+                to="/"
+                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm active:scale-95 transition-transform"
                 style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.14)' }}
               >
                 F4
-              </div>
+              </Link>
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <NavIcon label="Dashboard" active><LayoutDashboard className="w-5 h-5" /></NavIcon>
+              <Link to="/"><NavIcon label="Dashboard" active><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon>
-              <NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon>
+              <Link to="/products"><NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon></Link>
               <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
               <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
               <div className="flex-1" />
@@ -433,9 +426,11 @@ export default function Dashboard() {
                 <PillButton className="bg-pink-clay/50 text-slate-800" iconBg="bg-pink-clay" icon={<Home className="w-3.5 h-3.5 text-rose-600" />}>
                   Chọn Kho
                 </PillButton>
-                <PillButton className="bg-mint-clay/60 text-slate-800" iconBg="bg-mint-clay" icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}>
-                  Nhập Kho Mới
-                </PillButton>
+                <Link to="/products">
+                  <PillButton className="bg-mint-clay/60 text-slate-800" iconBg="bg-mint-clay" icon={<Plus className="w-3.5 h-3.5 text-emerald-700" />}>
+                    Nhập Kho Mới
+                  </PillButton>
+                </Link>
                 <button
                   className="relative w-10 h-10 rounded-full bg-white flex items-center justify-center transition-all active:scale-95"
                   style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.10)' }}
@@ -526,9 +521,9 @@ export default function Dashboard() {
                   {/* Stats row */}
                   <div className="mt-5 grid grid-cols-3 gap-3">
                     {[
-                      { label: 'Hiệu suất', value: '84%', color: 'text-emerald-500' },
-                      { label: 'Lượt lấy/giờ', value: '1.2k', color: 'text-slate-900' },
-                      { label: 'Tỉ lệ lỗi', value: '0.02%', color: 'text-rose-500' },
+                      { label: 'Hiệu suất', value: healthSpeed?.status === 'Good' ? 'Tốt' : 'Rủi ro', color: healthSpeed?.status === 'Good' ? 'text-emerald-500' : 'text-orange-500' },
+                      { label: 'Lượt GD/Tuần', value: healthSpeed?.details?.transactions || '0', color: 'text-slate-900' },
+                      { label: 'Tỉ lệ lỗi', value: healthDefect?.value || '0%', color: healthDefect?.status === 'Good' ? 'text-slate-900' : 'text-rose-500' },
                     ].map((s) => (
                       <div
                         key={s.label}
@@ -606,12 +601,12 @@ export default function Dashboard() {
                   icon={<Smartphone className="w-5 h-5 text-slate-700 animate-float" />}
                   iconBg="bg-white/70"
                   title="Điện thoại"
-                  sub="Hàng về 12h: 5 Lô"
+                  sub="Thiết bị di động"
                   progressColor="bg-lilac-clay"
-                  progressValue={72}
-                  stockCount="1.250"
-                  soldCount="450"
-                  note="Theo dõi vận hành thời gian thực tại Khu A-12"
+                  progressValue={stats?.categoryStock?.['Điện thoại'] ? (stats.categoryStock['Điện thoại'] / stats.totalStock) * 100 : 0}
+                  stockCount={stats?.categoryStock?.['Điện thoại'] || '0'}
+                  soldCount="-"
+                  note="Tồn kho thời gian thực"
                 />
               </div>
               <div className="col-span-12 md:col-span-4">
@@ -619,12 +614,12 @@ export default function Dashboard() {
                   icon={<Box className="w-5 h-5 text-slate-700 animate-float-delayed" />}
                   iconBg="bg-white/70"
                   title="Laptop"
-                  sub="Hàng về 12h: 3 Lô"
+                  sub="Máy tính xách tay"
                   progressColor="bg-mint-clay"
-                  progressValue={58}
-                  stockCount="820"
-                  soldCount="310"
-                  note="Mô phỏng vị trí lưu trữ thực tế trên Sơ đồ 3D"
+                  progressValue={stats?.categoryStock?.['Laptop'] ? (stats.categoryStock['Laptop'] / stats.totalStock) * 100 : 0}
+                  stockCount={stats?.categoryStock?.['Laptop'] || '0'}
+                  soldCount="-"
+                  note="Tồn kho thời gian thực"
                 />
               </div>
               <div className="col-span-12 md:col-span-4">
@@ -632,12 +627,12 @@ export default function Dashboard() {
                   icon={<Headphones className="w-5 h-5 text-rose-500 animate-float" />}
                   iconBg="bg-pink-clay/60"
                   title="Phụ kiện"
-                  sub="Hàng về 12h: 8 Lô"
+                  sub="Tai nghe, ốp lưng,..."
                   progressColor="bg-pink-clay"
-                  progressValue={36}
-                  stockCount="3.400"
-                  soldCount="1.200"
-                  note="Theo dõi tồn kho Phụ kiện thời gian thực tại Khu A-12"
+                  progressValue={stats?.categoryStock?.['Phụ kiện'] ? (stats.categoryStock['Phụ kiện'] / stats.totalStock) * 100 : 0}
+                  stockCount={stats?.categoryStock?.['Phụ kiện'] || '0'}
+                  soldCount="-"
+                  note="Tồn kho thời gian thực"
                 />
               </div>
             </div>{/* /row2 */}
@@ -667,7 +662,7 @@ export default function Dashboard() {
                     <div className="col-span-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Tiến độ</div>
                   </div>
                   <div className="divide-y divide-slate-200/40">
-                    {transactions.map((t) => (
+                    {displayActivities.map((t) => (
                       <TxnRow key={t.id} txn={t} />
                     ))}
                   </div>
