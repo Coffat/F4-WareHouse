@@ -28,6 +28,7 @@ import {
   Truck,
   Warehouse,
   Zap,
+  Users,
 } from 'lucide-react'
 
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -397,8 +398,9 @@ export default function Dashboard() {
               <Link to="/"><NavIcon label="Dashboard" active><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
               <Link to="/operations"><NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon></Link>
               <Link to="/products"><NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon></Link>
-              <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
-              <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
+              <Link to="/confirmation"><NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon></Link>
+              <Link to="/trace"><NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon></Link>
+              <Link to="/partners"><NavIcon label="Đối tác"><Users className="w-5 h-5" /></NavIcon></Link>
               <div className="flex-1" />
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
               <NavIcon label="Cài đặt"><Settings className="w-5 h-5" /></NavIcon>

@@ -15,6 +15,7 @@ export class InboundTransactionBuilder {
   private items: InboundItemDTO[] = [];
   private notes?: string;
   private code!: string;
+  private supplierId?: number;
 
   constructor() {
     this.code = `INB-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -27,6 +28,11 @@ export class InboundTransactionBuilder {
 
   public setDestinationWarehouse(warehouseId: number) {
     this.destWarehouseId = warehouseId;
+    return this;
+  }
+
+  public setSupplier(supplierId: number) {
+    this.supplierId = supplierId;
     return this;
   }
 
@@ -59,6 +65,7 @@ export class InboundTransactionBuilder {
       status: this.status,
       created_by: this.createdBy,
       dest_warehouse_id: this.destWarehouseId,
+      supplier_id: this.supplierId,
       total_amount: this.totalAmount,
     };
   }

@@ -180,9 +180,17 @@ export const productApiService = {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
-    if (!res.ok) {
-      const body = await res.json();
-      throw new Error(body.message ?? `HTTP ${res.status}`);
-    }
+    return handleResponse<void>(res);
+  },
+
+  /**
+   * GET /api/products/trace/:imei
+   */
+  async getImeiTrace(imei: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/products/trace/${imei}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse<any>(res);
   },
 };

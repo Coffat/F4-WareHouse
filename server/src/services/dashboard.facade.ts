@@ -74,10 +74,17 @@ export class DashboardFacade {
     const storageDensityStrategy = new StorageDensityStrategy();
     const densityResult = await storageDensityStrategy.calculateHealth(warehouseId);
 
+    const inTransitAgg = await db.inventory.aggregate({
+      _sum: { quantity: true },
+      where: { ...filter, status: InventoryStatus.IN_TRANSIT }
+    });
+    const inTransit = inTransitAgg._sum.quantity || 0;
+
     return {
       totalModels, // Updated name
       totalStock,
       defective,
+      inTransit,
       readyToSell: totalStock - defective,
       categoryStock,
       categorySold,

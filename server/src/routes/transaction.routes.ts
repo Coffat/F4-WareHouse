@@ -11,4 +11,13 @@ router.post("/inbound", authenticateToken, transactionController.handleInboundTr
 // Endpoint POST /api/transactions/outbound
 router.post("/outbound", authenticateToken, transactionController.handleOutboundTransaction);
 
+// Endpoint POST /api/transactions/transfer/out
+router.post("/transfer/out", authenticateToken, transactionController.handleTransferOut);
+
+// Endpoint POST /api/transactions/transfer/confirm
+router.post("/transfer/confirm", authenticateToken, transactionController.handleTransferConfirm);
+
+// Endpoint GET /api/transactions/transfer/pending
+router.get("/transfer/pending", authenticateToken, transactionController.getPendingTransfers);
+
 export default router;

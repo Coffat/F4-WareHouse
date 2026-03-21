@@ -28,6 +28,7 @@ model User {
   role           Role?            @relation(fields: [role_id], references: [id])
   warehouses     UserWarehouse[]
   transactions   Transaction[]
+  confirmed_transactions Transaction[] @relation("Confirmer")
 
   @@map("users")
 }
@@ -79,8 +80,27 @@ model Supplier {
   phone        String?   @db.VarChar(20)
   address      String?   @db.Text
   email        String?   @db.VarChar(100)
+  transactions Transaction[]
 
   @@map("suppliers")
+}
+
+model Customer {
+  id            Int             @id @default(autoincrement())
+  full_name     String          @db.VarChar(100)
+  phone         String          @unique @db.VarChar(20)
+  email         String?         @unique @db.VarChar(100)
+  address       String?         @db.Text
+  customer_type CustomerType
+  created_at    DateTime        @default(now())
+  transactions  Transaction[]
+
+  @@map("customers")
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
 }
 
 model Product {
@@ -136,6 +156,7 @@ enum ProductItemStatus {
   SOLD
   WARRANTY
   DEFECTIVE
+  IN_TRANSIT
 }
 
 model Transaction {
@@ -146,11 +167,18 @@ model Transaction {
   created_by          Int?
   source_warehouse_id Int?
   dest_warehouse_id   Int?
+  supplier_id         Int?
+  customer_id         Int?
+  confirmed_by        Int?
+  confirmed_at        DateTime?
   total_amount        Decimal           @default(0) @db.Decimal(15, 2)
   created_at          DateTime          @default(now())
   creator             User?             @relation(fields: [created_by], references: [id])
+  confirmer           User?             @relation("Confirmer", fields: [confirmed_by], references: [id])
   source_warehouse    Warehouse?        @relation("SourceWarehouse", fields: [source_warehouse_id], references: [id])
   dest_warehouse      Warehouse?        @relation("DestWarehouse", fields: [dest_warehouse_id], references: [id])
+  supplier            Supplier?         @relation(fields: [supplier_id], references: [id])
+  customer            Customer?         @relation(fields: [customer_id], references: [id])
   details             TransactionDetail[]
 
   @@map("transactions")

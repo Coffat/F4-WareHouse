@@ -1,24 +1,22 @@
 import { TransactionType, TransactionStatus, Prisma } from "@prisma/client";
 
-export interface OutboundItemDTO {
+export interface TransferItemDTO {
   productId: number;
-  sellingPrice: number;
   imeiList: string[];
 }
 
-export class OutboundTransactionBuilder {
-  private type: TransactionType = TransactionType.OUTBOUND;
+export class TransferTransactionBuilder {
+  private type: TransactionType = TransactionType.TRANSFER;
   private status: TransactionStatus = TransactionStatus.PENDING;
   private createdBy!: number;
   private sourceWarehouseId!: number;
-  private totalAmount: number = 0;
-  private items: OutboundItemDTO[] = [];
+  private destWarehouseId!: number;
+  private items: TransferItemDTO[] = [];
   private notes?: string;
   private code!: string;
-  private customerId?: number;
 
   constructor() {
-    this.code = `OUT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    this.code = `TRF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
   public setCreator(userId: number) {
@@ -31,14 +29,13 @@ export class OutboundTransactionBuilder {
     return this;
   }
 
-  public setCustomer(id?: number) {
-    this.customerId = id;
+  public setDestWarehouse(warehouseId: number) {
+    this.destWarehouseId = warehouseId;
     return this;
   }
 
-  public setItems(items: OutboundItemDTO[]) {
+  public setItems(items: TransferItemDTO[]) {
     this.items = items;
-    this.calculateTotal();
     return this;
   }
 
@@ -52,12 +49,6 @@ export class OutboundTransactionBuilder {
     return this;
   }
 
-  private calculateTotal() {
-    this.totalAmount = this.items.reduce((sum, item) => {
-      return sum + item.sellingPrice * item.imeiList.length;
-    }, 0);
-  }
-
   public build() {
     return {
       code: this.code,
@@ -65,8 +56,8 @@ export class OutboundTransactionBuilder {
       status: this.status,
       created_by: this.createdBy,
       source_warehouse_id: this.sourceWarehouseId,
-      customer_id: this.customerId,
-      total_amount: this.totalAmount,
+      dest_warehouse_id: this.destWarehouseId,
+      total_amount: 0,
     };
   }
 

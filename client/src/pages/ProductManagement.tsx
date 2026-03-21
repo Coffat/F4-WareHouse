@@ -13,12 +13,11 @@
 
 import React, { useState, useMemo, useEffect, useCallback, createContext, useContext } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Bell, Box, ChevronRight, Headphones, LayoutDashboard, Laptop,
-  Package, PackageSearch, Plus, Search, Settings, Smartphone, Truck,
-  Warehouse, X, Edit3, Trash2, Filter, ScanLine, Tag, Cpu,
-  HardDrive, Battery, Monitor, RefreshCw, AlertCircle, Loader2, ChevronDown,
-  Home
+import { 
+  Plus, Search, Filter, Box, AlertCircle, Edit2, Trash2, Home, BarChart2, CheckCircle2, 
+  Package, LayoutDashboard, Warehouse, Settings, X, ChevronRight, Download, Eye, Truck, 
+  PackageSearch, Smartphone, Camera, Headphones, Loader, Battery, Monitor, Cpu, ChevronDown, 
+  Check, Zap, ArrowDownToLine, Printer, Users, ScanLine, HardDrive, Tag, Laptop, Edit3, Loader2, RefreshCw 
 } from 'lucide-react'
 
 import Header from '../components/common/Header'
@@ -802,8 +801,9 @@ function ProductManagementView({
               <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
               <Link to="/operations"><NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon></Link>
               <Link to="/products"><NavIcon label="Sản phẩm" active><Package className="w-5 h-5" /></NavIcon></Link>
-              <NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon>
-              <NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon>
+              <Link to="/confirmation"><NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon></Link>
+              <Link to="/trace"><NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon></Link>
+              <Link to="/partners"><NavIcon label="Đối tác"><Users className="w-5 h-5" /></NavIcon></Link>
               <div className="flex-1" />
               <div className="w-full h-px bg-slate-200/60 rounded-full" />
               <NavIcon label="Cài đặt"><Settings className="w-5 h-5" /></NavIcon>

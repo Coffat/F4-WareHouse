@@ -59,6 +59,16 @@ CREATE TABLE suppliers (
     email VARCHAR(100)
 );
 
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    address TEXT,
+    customer_type ENUM('RETAIL', 'WHOLESALE') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     category_id INT,
@@ -92,7 +102,7 @@ CREATE TABLE product_items (
     product_id INT,
     warehouse_id INT,
     imei_serial VARCHAR(100) UNIQUE NOT NULL,
-    status ENUM('IN_STOCK', 'SOLD', 'WARRANTY', 'DEFECTIVE') DEFAULT 'IN_STOCK',
+    status ENUM('IN_STOCK', 'SOLD', 'WARRANTY', 'DEFECTIVE', 'IN_TRANSIT') DEFAULT 'IN_STOCK',
     FOREIGN KEY (product_id) REFERENCES products(id),
     FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
 );
@@ -109,11 +119,18 @@ CREATE TABLE transactions (
     created_by INT, -- Người tạo phiếu [cite: 51]
     source_warehouse_id INT NULL, -- Kho nguồn (Dùng khi Xuất hoặc Chuyển) [cite: 51]
     dest_warehouse_id INT NULL, -- Kho đích (Dùng khi Nhập hoặc Chuyển) [cite: 51]
+    supplier_id INT NULL, -- Nhà cung cấp cho INBOUND
+    customer_id INT NULL, -- Khách hàng cho OUTBOUND
+    confirmed_by INT NULL, -- Người xác nhận nhận hàng
+    confirmed_at TIMESTAMP NULL, -- Thời gian xác nhận
     total_amount DECIMAL(15, 2) DEFAULT 0, -- Tổng tiền của toàn bộ hóa đơn [cite: 51]
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Thời gian tạo [cite: 51]
     FOREIGN KEY (created_by) REFERENCES users(id),
     FOREIGN KEY (source_warehouse_id) REFERENCES warehouses(id),
-    FOREIGN KEY (dest_warehouse_id) REFERENCES warehouses(id)
+    FOREIGN KEY (dest_warehouse_id) REFERENCES warehouses(id),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (customer_id) REFERENCES customers(id),
+    FOREIGN KEY (confirmed_by) REFERENCES users(id)
 );
 
 -- Chi tiết các dòng sản phẩm trong một phiếu giao dịch [cite: 52]

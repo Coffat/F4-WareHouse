@@ -15,9 +15,9 @@ export class InboundTransactionService {
    */
   public async handleInboundTransaction(
     userId: number,
-    supplierId: number, // Bỏ qua nếu không có cột supplier_id trong Database Transaction
+    supplierId: number,
     warehouseId: number,
-    notes: string,      // Bỏ qua nếu không có notes
+    notes: string,
     items: InboundItemDTO[]
   ) {
     // 1. Validation Chain cho IMEI
@@ -71,6 +71,7 @@ export class InboundTransactionService {
     builder
       .setCreator(userId)
       .setDestinationWarehouse(warehouseId)
+      .setSupplier(supplierId)
       .setItems(validItems)
       .setNotes(notes)
       .setStatus(transactionState.getStatus());

@@ -22,6 +22,7 @@ router.use(authenticateToken);
 // authorizeWarehouseAccess() kiểm tra warehouse_id từ req.query, block truy cập kho không được phân công
 router.get('/', authorizeWarehouseAccess(), (req, res, next) => productController.getProducts(req, res, next));
 router.get('/stats', authorizeWarehouseAccess(), (req, res, next) => productController.getStats(req, res, next));
+router.get('/trace/:imei', (req, res, next) => productController.getImeiTrace(req, res, next));
 router.get('/form-options', (req, res, next) => productController.getFormOptions(req, res, next));
 router.get('/:id', (req, res, next) => productController.getProductById(req, res, next));
 

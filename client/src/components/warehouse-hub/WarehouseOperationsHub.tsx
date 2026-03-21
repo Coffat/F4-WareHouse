@@ -25,12 +25,16 @@ import {
   Zap,
 } from 'lucide-react'
 import { useWarehouseStore } from '../../store/useWarehouseStore'
+import { productApiService, ApiProduct } from '../../services/product.service'
+import { transactionApiService, InboundPayload, OutboundPayload } from '../../services/transaction.service'
+import { usePartnerStore } from '../../store/usePartnerStore'
+import { useEffect } from 'react'
 
 // ─────────────────────────────────────────────────────────────
 // Types & Constants
 // ─────────────────────────────────────────────────────────────
 
-export type HubMode = 'INBOUND' | 'OUTBOUND'
+export type HubMode = 'INBOUND' | 'OUTBOUND' | 'TRANSFER'
 
 type HubStatus =
   | { kind: 'idle' }
@@ -48,21 +52,7 @@ interface ScannedRow {
   imei: string;
 }
 
-const MOCK_SUPPLIERS: Supplier[] = [
-  { id: 1, name: 'Apple Việt Nam' },
-  { id: 2, name: 'Samsung Distribution' },
-  { id: 3, name: 'Xiaomi SEA' },
-  { id: 4, name: 'Dell Technologies VN' },
-  { id: 5, name: 'Lenovo APAC' },
-]
-
-const MOCK_CUSTOMERS: Customer[] = [
-  { id: 1, name: 'Công ty TNHH Tech Plus' },
-  { id: 2, name: 'Siêu thị điện máy VinMart' },
-  { id: 3, name: 'CellphoneS HCM' },
-  { id: 4, name: 'FPT Shop Hà Nội' },
-  { id: 5, name: 'Nguyễn Kim Group' },
-]
+// Removed MOCK arrays in favor of real DB data from usePartnerStore
 
 // ─────────────────────────────────────────────────────────────
 // Utility
@@ -88,11 +78,11 @@ function findDuplicates(rows: ScannedRow[]): Set<string> {
 function ModeSwitcher({ mode, onChange }: { mode: HubMode; onChange: (m: HubMode) => void }) {
   return (
     <div className="inline-flex gap-1 p-1.5 rounded-full" style={{ background: '#FDFBF7', boxShadow: 'inset 4px 4px 10px rgba(17,24,39,0.08), inset -4px -4px 10px rgba(255,255,255,0.80)' }}>
-      {(['INBOUND', 'OUTBOUND'] as HubMode[]).map((m) => {
+      {(['INBOUND', 'OUTBOUND', 'TRANSFER'] as HubMode[]).map((m) => {
         const isActive = mode === m
-        const bg = isActive ? (m === 'INBOUND' ? 'bg-mint-clay' : 'bg-pink-clay') : 'bg-transparent'
-        const Icon = m === 'INBOUND' ? ArrowDownToLine : ArrowUpFromLine
-        const label = m === 'INBOUND' ? 'Nhập Kho' : 'Xuất Kho'
+        const bg = isActive ? (m === 'INBOUND' ? 'bg-mint-clay' : m === 'OUTBOUND' ? 'bg-pink-clay' : 'bg-lilac-clay') : 'bg-transparent'
+        const Icon = m === 'INBOUND' ? ArrowDownToLine : m === 'OUTBOUND' ? ArrowUpFromLine : ArrowRightLeft
+        const label = m === 'INBOUND' ? 'Nhập Kho' : m === 'OUTBOUND' ? 'Xuất Kho' : 'Điều chuyển'
         return (
           <button key={m} onClick={() => onChange(m)} className={cn('relative flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold transition-all duration-300 active:scale-95', bg, isActive ? 'text-slate-800' : 'text-slate-400 hover:text-slate-600')} style={isActive ? { boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 16px rgba(17,24,39,0.12)' } : {}}>
             <Icon className="w-4 h-4" />
@@ -182,19 +172,23 @@ function StatusBadge({ status }: { status: HubStatus }) {
 // HubPresenter — Pure Rendering Component
 // ─────────────────────────────────────────────────────────────
 
+import { ArrowRightLeft } from 'lucide-react'
+
 interface HubPresenterProps {
-  mode: HubMode; warehouseName: string; rows: ScannedRow[]; duplicates: Set<string>; status: HubStatus; selectedSupplierId: number | null; selectedCustomerId: number | null; totalValue: string; onModeChange: (m: HubMode) => void; onSupplierChange: (id: number) => void; onCustomerChange: (id: number) => void; onConfirm: () => void; onClear: () => void; isShaking: boolean; onFileUpload: (file: File) => void; onRemoveRow: (id: string) => void
+  mode: HubMode; warehouseName: string; rows: ScannedRow[]; duplicates: Set<string>; status: HubStatus; selectedSupplierId: number | null; selectedCustomerId: number | null; selectedDestWarehouseId: number | null; availableDestWarehouses: any[]; suppliers: any[]; customers: any[]; totalValue: string; onModeChange: (m: HubMode) => void; onSupplierChange: (id: number) => void; onCustomerChange: (id: number) => void; onDestWarehouseChange: (id: number) => void; onConfirm: () => void; onClear: () => void; isShaking: boolean; onFileUpload: (file: File) => void; onRemoveRow: (id: string) => void
 }
 
-function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedSupplierId, selectedCustomerId, totalValue, onModeChange, onSupplierChange, onCustomerChange, onConfirm, onClear, isShaking, onFileUpload, onRemoveRow }: HubPresenterProps) {
+function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedSupplierId, selectedCustomerId, selectedDestWarehouseId, availableDestWarehouses, suppliers, customers, totalValue, onModeChange, onSupplierChange, onCustomerChange, onDestWarehouseChange, onConfirm, onClear, isShaking, onFileUpload, onRemoveRow }: HubPresenterProps) {
   const isInbound = mode === 'INBOUND'
-  const accentColor = isInbound ? '#B2F2BB' : '#FFD1DC'
-  const accentBg = isInbound ? 'bg-mint-clay' : 'bg-pink-clay'
-  const ModeIcon = isInbound ? PackagePlus : ClipboardList
+  const isOutbound = mode === 'OUTBOUND'
+  const isTransfer = mode === 'TRANSFER'
+  const accentColor = isInbound ? '#B2F2BB' : isOutbound ? '#FFD1DC' : '#E0C3FC'
+  const accentBg = isInbound ? 'bg-mint-clay' : isOutbound ? 'bg-pink-clay' : 'bg-lilac-clay'
+  const ModeIcon = isInbound ? PackagePlus : isOutbound ? ClipboardList : ArrowRightLeft
   const fileInputRef = useRef<HTMLInputElement>(null)
   const hasDuplicates = duplicates.size > 0
   const imeiCount = rows.length
-  const isReady = imeiCount > 0 && !hasDuplicates && (isInbound ? !!selectedSupplierId : !!selectedCustomerId) && status.kind !== 'submitting'
+  const isReady = imeiCount > 0 && !hasDuplicates && (isInbound ? !!selectedSupplierId : isOutbound ? !!selectedCustomerId : !!selectedDestWarehouseId) && status.kind !== 'submitting'
 
   return (
     <div className="relative flex flex-col gap-6 rounded-[40px] p-6 bg-cream-bg transition-all duration-500" style={{ boxShadow: '12px 12px 24px #e0ddd7, -12px -12px 24px #ffffff', border: `2px solid ${accentColor}40`, width: '100%', maxWidth: '1120px', margin: '0 auto' }}>
@@ -214,15 +208,22 @@ function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedS
       <div className="h-px w-full rounded-full" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent, ${accentColor})` }} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {isInbound ? (
+        {isInbound && (
           <>
-            <ClaySelect label="Nhà cung cấp" placeholder="— Chọn nhà cung cấp —" items={MOCK_SUPPLIERS} value={selectedSupplierId} onChange={onSupplierChange} accentColor={accentColor} />
+            <ClaySelect label="Nhà cung cấp" placeholder="— Chọn nhà cung cấp —" items={suppliers.map(s => ({ id: s.id, name: s.company_name || s.name || '' }))} value={selectedSupplierId} onChange={onSupplierChange} accentColor={accentColor} />
             <PriceDisplay label="Tổng tiền nhập kho (₫)" value={totalValue} accentColor={accentColor} highlight={imeiCount > 0} />
           </>
-        ) : (
+        )}
+        {isOutbound && (
           <>
-            <ClaySelect label="Khách hàng" placeholder="— Chọn khách hàng —" items={MOCK_CUSTOMERS} value={selectedCustomerId} onChange={onCustomerChange} accentColor={accentColor} />
+            <ClaySelect label="Khách hàng" placeholder="— Chọn khách hàng —" items={customers.map(c => ({ id: c.id, name: c.full_name || c.name || '' }))} value={selectedCustomerId} onChange={onCustomerChange} accentColor={accentColor} />
             <PriceDisplay label="Tổng tiền xuất kho (₫)" value={totalValue} accentColor={accentColor} highlight={imeiCount > 0} />
+          </>
+        )}
+        {isTransfer && (
+          <>
+            <ClaySelect label="Kho đích" placeholder="— Chọn kho đích —" items={availableDestWarehouses} value={selectedDestWarehouseId} onChange={onDestWarehouseChange} accentColor={accentColor} />
+            <PriceDisplay label="Tổng số lượng (IMEI)" value={`${imeiCount}`} accentColor={accentColor} highlight={imeiCount > 0} />
           </>
         )}
       </div>
@@ -239,7 +240,7 @@ function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedS
           </div>
         </div>
 
-        <div className={cn('relative rounded-[32px] overflow-hidden group transition-all duration-500 bg-cream-bg border-2 border-transparent h-[340px]', isShaking && 'animate-shake', imeiCount > 0 && `border-${isInbound ? 'emerald' : 'pink'}-100`)} style={{ boxShadow: 'inset 10px 10px 20px rgba(0,0,0,0.04), inset -10px -10px 20px rgba(255,255,255,0.6)' }}>
+        <div className={cn('relative rounded-[32px] overflow-hidden group transition-all duration-500 bg-cream-bg border-2 border-transparent h-[340px]', isShaking && 'animate-shake', imeiCount > 0 && `border-${isInbound ? 'emerald' : isOutbound ? 'pink' : 'purple'}-100`)} style={{ boxShadow: 'inset 10px 10px 20px rgba(0,0,0,0.04), inset -10px -10px 20px rgba(255,255,255,0.6)' }}>
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-scan-fast z-30" />
           
           <div className="h-full overflow-y-auto p-4 pt-12 custom-scrollbar">
@@ -295,7 +296,7 @@ function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedS
       <StatusBadge status={status} />
 
       <button onClick={onConfirm} disabled={!isReady} className={cn('relative w-full rounded-full py-4 flex items-center justify-center gap-2.5', 'text-[15px] font-bold text-slate-800', 'transition-all duration-300 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed', accentBg)} style={{ boxShadow: isReady ? `-6px -6px 14px rgba(255,255,255,0.95), 10px 14px 28px rgba(17,24,39,0.12), inset 0 1px 0 rgba(255,255,255,0.8)` : 'none' }}>
-        {status.kind === 'submitting' ? <><Sparkles className="w-5 h-5 animate-spin" />Vạn vật đang đồng bộ...</> : <><Zap className="w-5 h-5" />{isInbound ? `Khai báo Bulk Inbound (${imeiCount})` : `Xác nhận Bulk Outbound (${imeiCount})`}</>}
+        {status.kind === 'submitting' ? <><Sparkles className="w-5 h-5 animate-spin" />Vạn vật đang đồng bộ...</> : <><Zap className="w-5 h-5" />{isInbound ? `Khai báo Bulk Inbound (${imeiCount})` : isOutbound ? `Xác nhận Bulk Outbound (${imeiCount})` : `Thực hiện Điều chuyển (${imeiCount})`}</>}
       </button>
 
       <div className="absolute top-5 right-5 w-3 h-3 rounded-full opacity-60 animate-pulse" style={{ background: accentColor }} />
@@ -309,6 +310,7 @@ function HubPresenter({ mode, warehouseName, rows, duplicates, status, selectedS
 
 export default function WarehouseOperationsHub() {
   const { selectedWarehouseId, availableWarehouses } = useWarehouseStore()
+  const { suppliers, customers, fetchPartners } = usePartnerStore()
   const warehouseName = useMemo(() => {
     if (!selectedWarehouseId) return 'Chưa chọn kho'
     return availableWarehouses.find((w) => w.id === selectedWarehouseId)?.name ?? 'Kho không tồn tại'
@@ -318,8 +320,28 @@ export default function WarehouseOperationsHub() {
   const [rows, setRows] = useState<ScannedRow[]>([])
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null)
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
+  const [selectedDestWarehouseId, setSelectedDestWarehouseId] = useState<number | null>(null)
   const [status, setStatus] = useState<HubStatus>({ kind: 'idle' })
   const [isShaking, setIsShaking] = useState(false)
+  const [availableProducts, setAvailableProducts] = useState<ApiProduct[]>([])
+  const [realSuppliers, setRealSuppliers] = useState<Supplier[]>([])
+
+  // Load master data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [productsRes, options] = await Promise.all([
+           productApiService.getProducts({ page: 1, limit: 1000 }), // Get all models
+           productApiService.getFormOptions()
+        ]);
+        setAvailableProducts(productsRes.data);
+      } catch (err) {
+        console.error("Failed to load master data", err);
+      }
+    };
+    loadData();
+    fetchPartners(); // fetch real suppliers and customers
+  }, []);
 
   const duplicates = useMemo(() => findDuplicates(rows), [rows])
   const imeiCount = rows.length
@@ -334,7 +356,7 @@ export default function WarehouseOperationsHub() {
   }, [totalValueRaw]);
 
   const handleModeChange = useCallback((m: HubMode) => {
-    setMode(m); setRows([]); setSelectedSupplierId(null); setSelectedCustomerId(null); setStatus({ kind: 'idle' }); setIsShaking(false)
+    setMode(m); setRows([]); setSelectedSupplierId(null); setSelectedCustomerId(null); setSelectedDestWarehouseId(null); setStatus({ kind: 'idle' }); setIsShaking(false)
   }, [])
 
   const simulateSubmit = useCallback(() => {
@@ -352,11 +374,105 @@ export default function WarehouseOperationsHub() {
     }, 200)
   }, [totalValueFormatted, mode])
 
-  const handleConfirm = useCallback(() => {
-    if (imeiCount === 0) { setStatus({ kind: 'error', message: 'Chưa có dữ liệu để xử lý.' }); return }
-    if (duplicates.size > 0) { setStatus({ kind: 'error', message: 'Vui lòng xóa các mã IMEI bị trùng hoặc sửa lại dữ liệu.' }); setIsShaking(true); setTimeout(() => setIsShaking(false), 600); return }
-    simulateSubmit()
-  }, [imeiCount, duplicates, simulateSubmit])
+  const handleConfirm = async () => {
+    if (!selectedWarehouseId) {
+      setStatus({ kind: 'error', message: 'Vui lòng chọn kho trước khi thực hiện.' });
+      return;
+    }
+    if (imeiCount === 0) { 
+       setStatus({ kind: 'error', message: 'Chưa có dữ liệu để xử lý.' }); 
+       return; 
+    }
+    if (duplicates.size > 0) { 
+       setStatus({ kind: 'error', message: 'Vui lòng xóa các mã IMEI bị trùng.' }); 
+       setIsShaking(true); 
+       setTimeout(() => setIsShaking(false), 600); 
+       return; 
+    }
+
+    setStatus({ kind: 'submitting', progress: 10 });
+
+    try {
+      // Group rows by product to match backend structure
+      const groupedItems = rows.reduce((acc: any, row) => {
+        // Try to find real productId by name match
+        const matchingProduct = availableProducts.find(p => 
+           p.name.toLowerCase() === row.productName.toLowerCase() ||
+           p.sku.toLowerCase() === row.productName.toLowerCase() // sometimes name is SKU in CSV
+        );
+        
+        if (!matchingProduct) {
+           throw new Error(`Sản phẩm "${row.productName}" không tồn tại trong hệ thống. Hãy đăng ký nó trước.`);
+        }
+
+        const pId = matchingProduct.id;
+        if (!acc[pId]) {
+           acc[pId] = { productId: pId, price: row.price, imeiList: [] };
+        }
+        acc[pId].imeiList.push(row.imei);
+        return acc;
+      }, {});
+
+      const itemsArray = Object.values(groupedItems);
+      setStatus({ kind: 'submitting', progress: 40 });
+
+      if (mode === 'INBOUND') {
+         if (!selectedSupplierId) {
+            setStatus({ kind: 'error', message: 'Vui lòng chọn nhà cung cấp.' });
+            return;
+         }
+         const payload: InboundPayload = {
+            supplierId: selectedSupplierId,
+            warehouseId: selectedWarehouseId,
+            notes: `Nhập kho lô hàng ${imeiCount} sản phẩm từ UI Hub`,
+            items: itemsArray.map((i: any) => ({
+               productId: i.productId,
+               unitPrice: i.price,
+               imeiList: i.imeiList
+            }))
+         };
+         await transactionApiService.createInbound(payload);
+      } else if (mode === 'OUTBOUND') {
+         if (!selectedCustomerId) {
+            setStatus({ kind: 'error', message: 'Vui lòng chọn khách hàng.' });
+            return;
+         }
+         const payload: OutboundPayload = {
+            customerId: selectedCustomerId,
+            warehouseId: selectedWarehouseId,
+            notes: `Xuất kho lô hàng ${imeiCount} sản phẩm cho khách`,
+            items: itemsArray.map((i: any) => ({
+               productId: i.productId,
+               sellingPrice: i.price,
+               imeiList: i.imeiList
+            }))
+         };
+         await transactionApiService.createOutbound(payload);
+      } else if (mode === 'TRANSFER') {
+         if (!selectedDestWarehouseId) {
+            setStatus({ kind: 'error', message: 'Vui lòng chọn kho đích.' });
+            return;
+         }
+         const payload = {
+            sourceWarehouseId: selectedWarehouseId,
+            destWarehouseId: selectedDestWarehouseId,
+            notes: `Điều chuyển ${imeiCount} sản phẩm từ kho #${selectedWarehouseId} sang kho #${selectedDestWarehouseId}`,
+            items: itemsArray.map((i: any) => ({
+               productId: i.productId,
+               imeiList: i.imeiList
+            }))
+         };
+         await transactionApiService.createTransfer(payload);
+      }
+
+      setStatus({ kind: 'submitting', progress: 100 });
+      setStatus({ kind: 'success', message: `${mode === 'INBOUND' ? 'Nhập' : mode === 'OUTBOUND' ? 'Xuất' : 'Điều chuyển'} kho thành công! Dữ liệu đã được lưu vào hệ thống.` });
+      setTimeout(() => { setRows([]); setStatus({ kind: 'idle' }); }, 3000);
+
+    } catch (err: any) {
+      setStatus({ kind: 'error', message: err.message || 'Có lỗi xảy ra khi xử lý giao dịch.' });
+    }
+  };
 
   const handleClear = useCallback(() => {
     setRows([]); setStatus({ kind: 'idle' }); setIsShaking(false);
@@ -368,7 +484,7 @@ export default function WarehouseOperationsHub() {
 
   return (
     <HubPresenter
-      mode={mode} warehouseName={warehouseName} rows={rows} duplicates={duplicates} status={status} selectedSupplierId={selectedSupplierId} selectedCustomerId={selectedCustomerId} totalValue={totalValueFormatted} onModeChange={handleModeChange} onSupplierChange={setSelectedSupplierId} onCustomerChange={setSelectedCustomerId} onConfirm={handleConfirm} onClear={handleClear} isShaking={isShaking} onRemoveRow={handleRemoveRow}
+      mode={mode} warehouseName={warehouseName} rows={rows} duplicates={duplicates} status={status} selectedSupplierId={selectedSupplierId} selectedCustomerId={selectedCustomerId} selectedDestWarehouseId={selectedDestWarehouseId} availableDestWarehouses={availableWarehouses.filter(w => w.id !== selectedWarehouseId)} suppliers={suppliers} customers={customers} totalValue={totalValueFormatted} onModeChange={handleModeChange} onSupplierChange={setSelectedSupplierId} onCustomerChange={setSelectedCustomerId} onDestWarehouseChange={setSelectedDestWarehouseId} onConfirm={handleConfirm} onClear={handleClear} isShaking={isShaking} onRemoveRow={handleRemoveRow}
       onFileUpload={(file) => {
         const reader = new FileReader();
         reader.onload = (e) => {

@@ -3,6 +3,9 @@ import { Route, Routes, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import ProductManagement from './pages/ProductManagement';
 import Operations from './pages/Operations';
+import WarehouseConfirmationPage from './pages/WarehouseConfirmation';
+import IMEITrackerPage from './pages/IMEITracker';
+import PartnerManagementPage from './pages/PartnerManagement';
 import Login from './pages/Login';
 import { useAuthStore } from './store/useAuthStore';
 import { useWarehouseStore } from './store/useWarehouseStore';
@@ -52,6 +55,30 @@ export default function App() {
         element={
           <PrivateRoute>
             <ProductManagement />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/confirmation" 
+        element={
+          <PrivateRoute>
+            <WarehouseConfirmationPage />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/trace" 
+        element={
+          <PrivateRoute>
+            <IMEITrackerPage />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/partners" 
+        element={
+          <PrivateRoute>
+            <PartnerManagementPage />
           </PrivateRoute>
         } 
       />

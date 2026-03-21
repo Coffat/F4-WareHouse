@@ -65,9 +65,13 @@ app.use("/api/warehouses", warehouseRoutes); // Warehouse module
 app.use("/api/dashboard", dashboardRoutes);
 
 import transactionRoutes from "./routes/transaction.routes";
+import supplierRoutes from "./routes/supplier.routes";
+import customerRoutes from "./routes/customer.routes";
 
 // TODO: Thêm các routes khác tại đây
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/customers", customerRoutes);
 
 // =============================================
 // ERROR HANDLING (phải đặt SAU các routes)

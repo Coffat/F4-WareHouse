@@ -18,6 +18,7 @@ import {
 } from '../services/product.service';
 import { JwtPayload } from '../types/auth.types';
 import { getAccessibleWarehouseIds } from '../middlewares/auth.middleware';
+import { db as prisma } from '../utils/database';
 
 // =============================================
 // Zod Schemas - Input Validation
@@ -46,7 +47,7 @@ const querySchema = z.object({
   warehouse_id: z.coerce.number().int().positive().optional(),
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(1000).default(20),
 });
 
 // =============================================
@@ -265,6 +266,90 @@ class ProductController {
         res.status(404).json({ success: false, message: error.message });
         return;
       }
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/products/trace/:imei
+   * Truy vết lịch sử giao dịch của 1 IMEI
+   */
+  async getImeiTrace(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { imei } = req.params;
+      if (!imei) {
+        res.status(400).json({ success: false, message: 'Thiếu mã IMEI' });
+        return;
+      }
+
+      const productItem: any = await (prisma.productItem as any).findUnique({
+        where: { imei_serial: imei },
+        include: {
+          product: {
+            include: { category: true }
+          },
+          warehouse: true,
+          transaction_imeis: {
+            include: {
+              detail: {
+                include: {
+                  transaction: {
+                    include: {
+                      creator: { select: { id: true, full_name: true, role: { select: { name: true } } } },
+                      confirmer: { select: { id: true, full_name: true, role: { select: { name: true } } } },
+                      source_warehouse: true,
+                      dest_warehouse: true,
+                      supplier: true,
+                      customer: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!productItem) {
+        res.status(404).json({ success: false, message: 'Không tìm thấy mã IMEI này trong hệ thống.' });
+        return;
+      }
+
+      // Format timeline
+      const timeline = productItem.transaction_imeis
+        .map((ti: any) => ({
+           id: ti.detail?.transaction?.id,
+           code: ti.detail?.transaction?.code,
+           type: ti.detail?.transaction?.type,
+           status: ti.detail?.transaction?.status,
+           created_at: ti.detail?.transaction?.created_at,
+           creator: ti.detail?.transaction?.creator,
+           confirmer: ti.detail?.transaction?.confirmer,
+           confirmed_at: ti.detail?.transaction?.confirmed_at,
+           source_warehouse: ti.detail?.transaction?.source_warehouse,
+           dest_warehouse: ti.detail?.transaction?.dest_warehouse,
+           supplier: ti.detail?.transaction?.supplier,
+           customer_name: ti.detail?.transaction?.customer?.full_name,
+        }))
+        .filter((t: any) => t && t.id)
+        .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+      // Deduplicate transactions just in case (e.g. if the same IMEI is on a transaction multiple times somehow)
+      const uniqueTimeline = timeline.filter((v: any, i: number, a: any[]) => a.findIndex((t: any) => (t.id === v.id)) === i);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          profile: {
+            imei: productItem.imei_serial,
+            product: productItem.product,
+            current_status: productItem.status,
+            current_warehouse: productItem.warehouse
+          },
+          timeline: uniqueTimeline
+        }
+      });
+    } catch (error) {
       next(error);
     }
   }
