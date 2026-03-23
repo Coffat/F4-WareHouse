@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { 
-  Home, LayoutDashboard, Package, PackageSearch, Plus, Settings, Truck, Warehouse,
-  Search, ScanLine, ArrowDownRight, PackageCheck, AlertCircle, ArrowRight, User, CheckCircle, Users
+  Home, Package, Plus, Truck, Warehouse,
+  Search, ScanLine, ArrowDownRight, PackageCheck, AlertCircle, ArrowRight, User, CheckCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -11,28 +10,9 @@ function cn(...parts: Array<string | false | null | undefined>) {
 }
 
 import Header from '../components/common/Header'
+import AppSidebar from '../components/common/AppSidebar'
 import WarehouseModal from '../components/common/WarehouseModal'
 import { productApiService } from '../services/product.service'
-
-function NavIcon({ active, label, children, onClick }: { active?: boolean; label: string; children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className={cn(
-        'w-11 h-11 rounded-2xl flex items-center justify-center transition-all active:scale-95',
-        active ? 'bg-mint-clay text-slate-800' : 'bg-cream-bg text-slate-500 hover:text-slate-700'
-      )}
-      style={{
-        boxShadow: active
-          ? '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.12), inset 0px 1px 0px rgba(255,255,255,0.8)'
-          : '-3px -3px 8px rgba(255,255,255,0.9), 4px 6px 14px rgba(17,24,39,0.08)',
-      }}
-    >
-      {children}
-    </button>
-  )
-}
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -91,42 +71,18 @@ export default function IMEITrackerPage() {
 
   const getTimelineColors = (type: string) => {
     switch (type) {
-      case 'INBOUND': return { bg: 'bg-mint-clay', accent: 'bg-emerald-400' }
-      case 'TRANSFER': return { bg: 'bg-lilac-clay', accent: 'bg-purple-400' }
-      case 'OUTBOUND': return { bg: 'bg-pink-clay', accent: 'bg-rose-400' }
-      default: return { bg: 'bg-sky-clay', accent: 'bg-sky-400' }
+      case 'INBOUND': return { bg: 'bg-primary', accent: 'bg-emerald-400' }
+      case 'TRANSFER': return { bg: 'bg-flow-transfer', accent: 'bg-purple-400' }
+      case 'OUTBOUND': return { bg: 'bg-status-info', accent: 'bg-sky-400' }
+      default: return { bg: 'bg-slate-300', accent: 'bg-slate-400' }
     }
   }
 
   return (
-    <div className="min-h-screen font-fredoka bg-cream-bg">
+    <div className="min-h-screen bg-surface-app">
       <div className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="flex gap-6">
-          {/* Sidebar */}
-          <aside className="shrink-0">
-            <div
-              className="w-[72px] rounded-[36px] bg-cream-bg px-3 py-5 flex flex-col items-center gap-5"
-              style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.95), 12px 16px 36px rgba(17,24,39,0.10)' }}
-            >
-              <Link
-                to="/"
-                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm"
-                style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.14)' }}
-              >
-                F4
-              </Link>
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/operations"><NavIcon label="Vận hành"><Warehouse className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/products"><NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/confirmation"><NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/trace"><NavIcon label="Tìm kiếm" active><PackageSearch className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/partners"><NavIcon label="Đối tác"><Users className="w-5 h-5" /></NavIcon></Link>
-              <div className="flex-1" />
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <NavIcon label="Cài đặt"><Settings className="w-5 h-5" /></NavIcon>
-            </div>
-          </aside>
+          <AppSidebar />
 
           {/* Main Content */}
           <main className="flex-1 min-w-0 flex flex-col items-center">
@@ -138,10 +94,7 @@ export default function IMEITrackerPage() {
               />
 
               {/* A. Smart Search Box */}
-              <div 
-                 className="mt-6 p-2 rounded-full bg-cream-bg border-4 border-white flex items-center"
-                 style={{ boxShadow: 'inset 6px 6px 12px rgba(17,24,39,0.06), inset -6px -6px 12px rgba(255,255,255,0.8), 8px 12px 24px rgba(17,24,39,0.05)' }}
-              >
+              <div className="mt-6 p-2 rounded-full bg-white border border-border-soft flex items-center shadow-apple-inset">
                  <ScanLine className="w-8 h-8 text-slate-400 ml-4 shrink-0" />
                  <form onSubmit={handleManualSearch} className="flex-1 flex items-center">
                     <input 
@@ -149,13 +102,13 @@ export default function IMEITrackerPage() {
                        placeholder="Nhập hoặc quét mã IMEI..." 
                        value={imei}
                        onChange={(e) => setImei(e.target.value)}
-                       className="w-full bg-transparent border-none outline-none px-4 text-xl md:text-2xl font-bold text-slate-800 placeholder:text-slate-300 font-mono"
+                       className="w-full bg-transparent border-none outline-none px-4 text-xl md:text-2xl font-medium tabular-nums text-slate-900 placeholder:text-slate-400 font-mono"
                     />
                  </form>
                  <button 
+                  type="button"
                   onClick={handleManualSearch}
-                  className="w-14 h-14 rounded-full bg-lilac-clay text-slate-800 flex items-center justify-center transition-transform active:scale-95"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 6px 14px rgba(17,24,39,0.12)' }}
+                  className="w-14 h-14 rounded-full bg-flow-transfer text-white flex items-center justify-center transition-all active:opacity-90 shadow-apple-sm"
                  >
                     {loading ? <div className="w-6 h-6 border-b-2 border-slate-800 rounded-full animate-spin"/> : <Search className="w-6 h-6" />}
                  </button>
@@ -178,25 +131,29 @@ export default function IMEITrackerPage() {
                        className="mt-12 space-y-10 w-full"
                     >
                        {/* B. Product Profile */}
-                       <div className="p-6 md:p-8 rounded-[36px] bg-white relative overflow-hidden" style={{ boxShadow: '-10px -10px 24px rgba(255,255,255,0.95), 16px 20px 40px rgba(17,24,39,0.08)' }}>
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-mint-clay rounded-bl-full opacity-50 blur-2xl" />
+                       <div className="p-6 md:p-8 rounded-2xl border border-border-soft bg-white relative overflow-hidden shadow-apple-md">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-primary rounded-bl-full opacity-35 blur-2xl" />
                           <div className="flex flex-col md:flex-row gap-6 md:gap-10 items-center md:items-start relative z-10">
-                             <div className="w-32 h-32 md:w-40 md:h-40 shrink-0 bg-slate-50 rounded-3xl p-4 flex items-center justify-center" style={{ boxShadow: 'inset 4px 4px 10px rgba(17,24,39,0.05), inset -4px -4px 10px rgba(255,255,255,0.9)' }}>
+                             <div className="w-32 h-32 md:w-40 md:h-40 shrink-0 bg-slate-50 rounded-2xl border border-border-soft p-4 flex items-center justify-center shadow-apple-inset">
                                 <img src={traceData.profile.product?.image_url || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80'} alt="Product" className="object-contain h-full mix-blend-multiply drop-shadow-md" />
                              </div>
                              <div className="flex-1 text-center md:text-left">
-                                <span className="px-3 py-1 bg-lilac-200 text-lilac-800 text-xs font-black uppercase rounded-full shadow-sm">IMEI {traceData.profile.imei}</span>
-                                <h2 className="text-3xl md:text-4xl font-black text-slate-800 mt-3">{traceData.profile.product?.name}</h2>
-                                <p className="text-slate-500 font-medium text-lg mt-1">SKU: {traceData.profile.product?.sku} &bull; Danh mục: {traceData.profile.product?.category?.name || 'Chưa phân loại'}</p>
+                                <span className="px-3 py-1 bg-lilac-200 text-lilac-900 text-xs font-semibold uppercase tracking-wide rounded-full font-mono tabular-nums">IMEI {traceData.profile.imei}</span>
+                                <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 mt-3 leading-snug">{traceData.profile.product?.name}</h2>
+                                <p className="text-slate-600 font-normal text-base mt-1 leading-relaxed">
+                                  <span className="font-mono text-sm text-slate-700">SKU: {traceData.profile.product?.sku}</span>
+                                  {' · '}
+                                  Danh mục: {traceData.profile.product?.category?.name || 'Chưa phân loại'}
+                                </p>
                                 
                                 <div className="mt-5 flex flex-wrap gap-4 items-center justify-center md:justify-start">
-                                   <div className="px-5 py-2.5 rounded-2xl bg-slate-100 flex items-center gap-2 font-bold text-slate-700 shadow-sm border border-slate-200">
+                                   <div className="px-5 py-2.5 rounded-2xl bg-slate-100 flex items-center gap-2 font-medium text-slate-800 shadow-sm border border-slate-200">
                                       {traceData.profile.current_status === 'IN_STOCK' ? '📦 Đang lưu kho' : 
                                        traceData.profile.current_status === 'SOLD' ? '🤝 Đã bán' :
                                        traceData.profile.current_status === 'IN_TRANSIT' ? '🚚 Đang chuyển kho' : 'Tình trạng: Khác'}
                                    </div>
                                    {traceData.profile.current_warehouse && (
-                                     <div className="px-5 py-2.5 rounded-2xl bg-mint-clay flex items-center gap-2 font-bold text-slate-800 shadow-sm">
+                                     <div className="px-5 py-2.5 rounded-2xl bg-primary flex items-center gap-2 font-medium text-white shadow-sm">
                                         <Warehouse className="w-4 h-4" /> Vị trí: {traceData.profile.current_warehouse.name}
                                      </div>
                                    )}
@@ -207,7 +164,7 @@ export default function IMEITrackerPage() {
 
                        {/* C. The Life Timeline */}
                        <div className="relative pt-6">
-                          <h3 className="text-2xl font-black text-slate-800 mb-10 pl-4 border-l-8 border-slate-800 rounded-sm">Lịch sử Hành trình</h3>
+                          <h3 className="text-xl font-semibold tracking-tight text-slate-900 mb-10 pl-4 border-l-4 border-slate-900 rounded-sm">Lịch sử Hành trình</h3>
                           
                           <div className="absolute left-8 md:left-12 top-24 bottom-10 w-1.5 bg-slate-200 rounded-full shadow-inner" />
 
@@ -224,26 +181,26 @@ export default function IMEITrackerPage() {
                                    >
                                       {/* Indicator */}
                                       <div className="relative z-10 w-16 h-16 md:w-24 md:h-24 shrink-0 flex items-center justify-center">
-                                         <div className={cn('w-12 h-12 md:w-16 md:h-16 rounded-3xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300', colors.bg)} style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 8px 10px 20px rgba(17,24,39,0.12)' }}>
+                                         <div className={cn('w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center transition-opacity group-hover:opacity-90 duration-300 shadow-apple-sm', colors.bg)}>
                                             {renderTimelineIcon(tx.type)}
                                          </div>
-                                         <div className={cn('absolute -bottom-2 -right-2 w-5 h-5 rounded-full border-4 border-cream-bg', colors.accent)} />
+                                         <div className={cn('absolute -bottom-2 -right-2 w-5 h-5 rounded-full border-4 border-surface-app', colors.accent)} />
                                       </div>
 
                                       {/* Card Content */}
-                                      <div className="flex-1 bg-white p-5 md:p-6 rounded-[28px] transition-transform duration-300 group-hover:-translate-y-1" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), -6px -6px 14px rgba(255,255,255,0.6), 8px 12px 24px rgba(17,24,39,0.06)' }}>
+                                      <div className="flex-1 bg-white p-5 md:p-6 rounded-xl border border-border-soft transition-shadow duration-300 group-hover:shadow-apple-md shadow-apple-sm">
                                          <div className="flex flex-col md:flex-row justify-between md:items-center gap-2 border-b border-slate-100 pb-4 mb-4">
                                             <div>
-                                               <span className="text-xs font-black uppercase tracking-wider text-slate-400">Giao dịch  •  {new Date(tx.created_at).toLocaleString('vi-VN')}</span>
-                                               <h4 className="text-lg font-bold text-slate-800 mt-1 flex items-center gap-2">
-                                                  {tx.type === 'INBOUND' ? 'Nhập kho mới' : tx.type === 'TRANSFER' ? 'Điều chuyển nội bộ' : 'Xuất kho bán'} a
+                                               <span className="text-xs font-medium uppercase tracking-wider text-slate-500 font-mono tabular-nums">Giao dịch · {new Date(tx.created_at).toLocaleString('vi-VN')}</span>
+                                               <h4 className="text-base font-semibold text-slate-900 mt-1 flex items-center gap-2 tracking-tight">
+                                                  {tx.type === 'INBOUND' ? 'Nhập kho mới' : tx.type === 'TRANSFER' ? 'Điều chuyển nội bộ' : 'Xuất kho bán'}
                                                   <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-mono border border-slate-200">{tx.code}</span>
                                                </h4>
                                             </div>
                                             {tx.status === 'COMPLETED' ? (
-                                               <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold w-fit">Đã Hoàn Tất</span>
+                                               <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-semibold w-fit">Đã Hoàn Tất</span>
                                             ) : (
-                                               <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-bold w-fit">Đang Xử Lý</span>
+                                               <span className="px-3 py-1 rounded-full bg-orange-100 text-orange-800 text-xs font-semibold w-fit">Đang Xử Lý</span>
                                             )}
                                          </div>
 
@@ -295,13 +252,13 @@ export default function IMEITrackerPage() {
                                             {/* Users involved */}
                                             <div className="col-span-1 md:col-span-2 mt-2 pt-4 border-t border-slate-50 flex flex-wrap gap-4">
                                                {tx.creator && (
-                                                  <div className="flex items-center gap-2 bg-cream-bg px-3 py-1.5 rounded-xl border border-slate-200/50">
+                                                  <div className="flex items-center gap-2 bg-surface-app px-3 py-1.5 rounded-xl border border-border-soft">
                                                      <User className="w-4 h-4 text-slate-400" />
                                                      <span className="text-xs text-slate-500">Người lập phiếu: <strong className="text-slate-700">{tx.creator.full_name}</strong></span>
                                                   </div>
                                                )}
                                                {tx.confirmer && (
-                                                  <div className="flex items-center gap-2 bg-cream-bg px-3 py-1.5 rounded-xl border border-slate-200/50">
+                                                  <div className="flex items-center gap-2 bg-surface-app px-3 py-1.5 rounded-xl border border-border-soft">
                                                      <CheckCircle className="w-4 h-4 text-emerald-500" />
                                                      <span className="text-xs text-slate-500">Người xác nhận: <strong className="text-slate-700">{tx.confirmer.full_name}</strong></span>
                                                   </div>
