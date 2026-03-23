@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { CheckCircle, Truck, PackageCheck, AlertTriangle, ListFilter, Sparkles, AlertCircle, FileUp, X, Home, LayoutDashboard, Package, PackageSearch, Plus, Settings, Warehouse, Users } from 'lucide-react'
+import { CheckCircle, Truck, PackageCheck, AlertTriangle, ListFilter, Sparkles, AlertCircle, FileUp, X, Home, Plus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWarehouseStore } from '../store/useWarehouseStore'
 import { transactionApiService } from '../services/transaction.service'
@@ -10,31 +9,12 @@ function cn(...parts: Array<string | false | null | undefined>) {
 }
 
 import Header from '../components/common/Header'
+import AppSidebar from '../components/common/AppSidebar'
 import WarehouseModal from '../components/common/WarehouseModal'
 
 interface ScannedRow {
   id: string
   imei: string
-}
-
-function NavIcon({ active, label, children, onClick }: { active?: boolean; label: string; children: React.ReactNode; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className={cn(
-        'w-11 h-11 rounded-2xl flex items-center justify-center transition-all active:scale-95',
-        active ? 'bg-mint-clay text-slate-800' : 'bg-cream-bg text-slate-500 hover:text-slate-700'
-      )}
-      style={{
-        boxShadow: active
-          ? '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.12), inset 0px 1px 0px rgba(255,255,255,0.8)'
-          : '-3px -3px 8px rgba(255,255,255,0.9), 4px 6px 14px rgba(17,24,39,0.08)',
-      }}
-    >
-      {children}
-    </button>
-  )
 }
 
 export default function WarehouseConfirmationPage() {
@@ -143,38 +123,13 @@ export default function WarehouseConfirmationPage() {
   }
 
   return (
-    <div className="min-h-screen font-fredoka bg-cream-bg">
+    <div className="min-h-screen bg-surface-app">
       <div className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="flex gap-6">
-          {/* Sidebar */}
-          <aside className="shrink-0">
-            <div
-              className="w-[72px] rounded-[36px] bg-cream-bg px-3 py-5 flex flex-col items-center gap-5"
-              style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.95), 12px 16px 36px rgba(17,24,39,0.10)' }}
-            >
-              <Link
-                to="/"
-                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm"
-                style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.14)' }}
-              >
-                F4
-              </Link>
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/operations"><NavIcon label="Vận hành"><Warehouse className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/products"><NavIcon label="Sản phẩm"><Package className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/confirmation"><NavIcon label="Vận chuyển" active><Truck className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/trace"><NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/partners"><NavIcon label="Đối tác"><Users className="w-5 h-5" /></NavIcon></Link>
-              <div className="flex-1" />
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <NavIcon label="Cài đặt"><Settings className="w-5 h-5" /></NavIcon>
-            </div>
-          </aside>
+          <AppSidebar />
 
           {/* Main Content */}
           <main className="flex-1 min-w-0">
-            {/* Unified Top Header — Claymorphism Edition */}
             <Header
               title="Trung Tâm Xác Nhận"
               subtitle="Tiếp nhận hàng hoá đang chuyển đến kho của bạn."
@@ -206,7 +161,7 @@ export default function WarehouseConfirmationPage() {
                   </div>
                ) : (
                   <div className="space-y-8 animate-fade-in">
-                     <div className="bg-cream-bg rounded-[32px] p-6 lg:p-8 relative" style={{ boxShadow: '12px 12px 24px #e0ddd7, -12px -12px 24px #ffffff' }}>
+                     <div className="bg-white border border-border-soft rounded-2xl p-6 lg:p-8 relative shadow-apple-md">
                         <div className="flex items-center justify-between mb-6">
                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                               <ListFilter className="w-5 h-5 text-slate-400" />
@@ -246,10 +201,11 @@ export default function WarehouseConfirmationPage() {
                                           setConfirmStatus({ kind: 'idle' })
                                        }}
                                        className={cn(
-                                          'p-5 rounded-[24px] cursor-pointer transition-all duration-300 relative overflow-hidden group',
-                                          isSelected ? 'bg-lilac-clay outline outline-2 outline-lilac-400 outline-offset-[-2px]' : 'bg-cream-bg hover:bg-slate-50'
+                                          'p-5 rounded-2xl cursor-pointer transition-all duration-300 relative overflow-hidden group border border-border-soft',
+                                          isSelected
+                                             ? 'bg-violet-50 shadow-apple-inset ring-1 ring-violet-300'
+                                             : 'bg-white shadow-apple-sm hover:bg-slate-50'
                                        )}
-                                       style={{ boxShadow: isSelected ? 'inset 4px 4px 8px rgba(255,255,255,0.6), inset -4px -4px 8px rgba(17,24,39,0.05)' : '8px 8px 16px #e0ddd7, -8px -8px 16px #ffffff' }}
                                     >
                                        <div className="absolute top-0 left-0 w-1.5 h-full bg-lilac-400" />
                                        
@@ -280,7 +236,7 @@ export default function WarehouseConfirmationPage() {
                                              <button
                                                 onClick={(e) => { e.stopPropagation(); handleQuickConfirm(tx) }}
                                                 disabled={confirmStatus.kind === 'submitting'}
-                                                className="w-full py-2.5 rounded-xl bg-mint-clay text-slate-800 font-bold text-sm flex justify-center items-center gap-2 hover:brightness-95 transition-all shadow-sm active:scale-95"
+                                                className="w-full py-2.5 rounded-xl bg-primary text-white font-bold text-sm flex justify-center items-center gap-2 hover:opacity-90 transition-all shadow-apple-sm active:scale-[0.98]"
                                              >
                                                 <CheckCircle className="w-4 h-4" /> Xác nhận Nhanh
                                              </button>
@@ -299,8 +255,7 @@ export default function WarehouseConfirmationPage() {
                               initial={{ opacity: 0, y: 30 }}
                               animate={{ opacity: 1, y: 0 }}
                               exit={{ opacity: 0, y: 20 }}
-                              className="bg-cream-bg rounded-[32px] p-6 lg:p-8" 
-                              style={{ boxShadow: '12px 12px 24px #e0ddd7, -12px -12px 24px #ffffff' }}
+                              className="bg-white border border-border-soft rounded-2xl p-6 lg:p-8 shadow-apple-md"
                            >
                               <div className="flex justify-between items-center mb-6">
                                  <h3 className="text-lg font-bold text-slate-800">Xác nhận Chi tiết bằng IMEI (Bảo mật quét mã)</h3>
@@ -329,7 +284,7 @@ export default function WarehouseConfirmationPage() {
 
                                  {/* Submit Detailed */}
                                  <div className="flex flex-col justify-between">
-                                    <div className="bg-white rounded-2xl p-4 border border-slate-100 h-32 overflow-y-auto" style={{ boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.03)' }}>
+                                    <div className="bg-white rounded-2xl p-4 border border-border-soft h-32 overflow-y-auto shadow-apple-inset">
                                        <div className="text-sm font-bold text-slate-700 mb-2 flex justify-between">
                                           <span>Máy đã quét: {scannedRows.length}</span>
                                           <span className="text-slate-400 font-normal">Tỉ lệ: {Math.min(scannedRows.length / selectedTx.details.reduce((a:number,b:any)=>a+b.quantity,0) * 100, 100).toFixed(0)}%</span>
@@ -349,10 +304,9 @@ export default function WarehouseConfirmationPage() {
                                           onClick={handleDetailedConfirm}
                                           disabled={scannedRows.length === 0 || confirmStatus.kind === 'submitting'}
                                           className={cn(
-                                             'w-full py-3 rounded-full font-bold text-[15px] flex justify-center items-center gap-2 transition-all duration-300 active:scale-95',
-                                             scannedRows.length > 0 ? 'bg-lilac-clay text-slate-800' : 'bg-slate-100 text-slate-400'
+                                             'w-full py-3 rounded-full font-bold text-[15px] flex justify-center items-center gap-2 transition-all duration-300 active:scale-[0.98]',
+                                             scannedRows.length > 0 ? 'bg-violet-600 text-white shadow-apple-md hover:opacity-95' : 'bg-slate-100 text-slate-400 shadow-flat'
                                           )}
-                                          style={{ boxShadow: scannedRows.length > 0 ? '6px 6px 12px rgba(17,24,39,0.08), -6px -6px 12px rgba(255,255,255,0.8), inset 0 1px 0 rgba(255,255,255,0.8)' : 'none' }}
                                        >
                                           {confirmStatus.kind === 'submitting' ? <Sparkles className="w-5 h-5 animate-spin" /> : <PackageCheck className="w-5 h-5" />}
                                           Đối chiếu & Xác nhận vào kho
