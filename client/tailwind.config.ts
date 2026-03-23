@@ -7,62 +7,58 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      /** Giao diện chữ chuyên nghiệp: Inter + stack hệ thống; mono cho IMEI/mã/số liệu */
       fontFamily: {
-        fredoka: ['Fredoka', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: [
+          'Inter',
+          '"SF Pro Display"',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          '"Segoe UI"',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        'cream-bg': '#FDFBF7',
-        'mint-clay': '#B2F2BB',
-        'pink-clay': '#FFD1DC',
-        'lilac-clay': '#E0C3FC',
-        'sky-clay': '#BAE6FD',
-        'peach-clay': '#FFDAB9',
+        primary: '#1A73E8',
+        ink: {
+          primary: '#0F172A',
+          secondary: '#475569',
+          disabled: '#94A3B8',
+        },
+        surface: {
+          app: '#F8FAFC',
+          card: '#FFFFFF',
+        },
+        'border-soft': '#E2E8F0',
+        status: {
+          success: '#10B981',
+          warning: '#F59E0B',
+          danger: '#EF4444',
+          info: '#0EA5E9',
+        },
+        flow: {
+          inbound: '#1A73E8',
+          outbound: '#0EA5E9',
+          transfer: '#8B5CF6',
+        },
       },
+      /** Apple-style: phẳng, phân lớp tinh tế — không dùng bóng đất sét đa lớp */
       boxShadow: {
-        // Claymorphism dual-shadow card - Inflated / Pumped look
-        'clay-card': [
-          '-10px -10px 24px rgba(255,255,255,0.95)',
-          '16px 20px 40px rgba(17,24,39,0.12)',
-          'inset 0px 1px 0px rgba(255,255,255,0.90)',
-          'inset 0px -1px 0px rgba(17,24,39,0.05)',
-        ].join(', '),
-
-        // Larger premium card
-        'clay-card-lg': [
-          '-14px -14px 34px rgba(255,255,255,0.96)',
-          '22px 28px 56px rgba(17,24,39,0.13)',
-          'inset 0px 1px 0px rgba(255,255,255,0.92)',
-          'inset 0px -2px 2px rgba(17,24,39,0.05)',
-        ].join(', '),
-
-        // Small/pill shadow
-        'clay-pill': [
-          '-6px -6px 14px rgba(255,255,255,0.95)',
-          '10px 14px 28px rgba(17,24,39,0.12)',
-          'inset 0px 1px 0px rgba(255,255,255,0.80)',
-        ].join(', '),
-
-        // Inset "pressed" or concave surface
-        'clay-inset': [
-          'inset 3px 3px 8px rgba(17,24,39,0.07)',
-          'inset -3px -3px 8px rgba(255,255,255,0.80)',
-        ].join(', '),
-
-        // Pressed state (click)
-        'clay-press': [
-          'inset 6px 8px 16px rgba(17,24,39,0.10)',
-          'inset -6px -8px 16px rgba(255,255,255,0.85)',
-        ].join(', '),
-
-        // Extra small quick utility
-        'clay-xs': [
-          '-4px -4px 10px rgba(255,255,255,0.95)',
-          '6px 8px 16px rgba(17,24,39,0.09)',
-        ].join(', '),
+        'apple-sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'apple-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        'apple-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        /** Ô input / search — lõm nhẹ, không bóng trắng âm */
+        'apple-inset': 'inset 0 2px 4px rgba(0, 0, 0, 0.05)',
+        flat: 'none',
       },
       borderRadius: {
-        card: '40px',
-        card2: '32px',
+        /** Card / panel chính */
+        card: '1rem',
+        /** Khối phụ, ô thống kê nhỏ */
+        card2: '0.75rem',
       },
     },
   },
@@ -70,3 +66,4 @@ const config: Config = {
 }
 
 export default config
+
