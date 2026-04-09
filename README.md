@@ -96,8 +96,8 @@ graph TD
    cd server
    npx prisma generate
    npx prisma migrate dev --name init
-   npm run db:seed # Để có dữ liệu mẫu
    ```
+   > Dữ liệu mẫu đã được khởi tạo trực tiếp từ `db.sql` khi chạy MySQL bằng Docker Compose.
 
 4. **Chạy dự án:**
    - **Backend:** `npm run dev` (Port 5000)

@@ -153,3 +153,91 @@ CREATE TABLE transaction_imei (
     FOREIGN KEY (transaction_detail_id) REFERENCES transaction_details(id) ON DELETE CASCADE,
     FOREIGN KEY (product_item_id) REFERENCES product_items(id)
 );
+
+-- =========================================================================
+-- 6. DỮ LIỆU MẪU KHỞI TẠO (SEED DATA)
+-- =========================================================================
+
+-- Roles
+INSERT INTO roles (name, description) VALUES
+('Admin', 'System Administrator'),
+('Manager', 'Warehouse Manager');
+
+-- Password cho cả 2 tài khoản: 123456
+INSERT INTO users (role_id, full_name, username, email, password_hash, status) VALUES
+(1, 'Admin User', 'admin', 'admin@f4.com', '$2a$12$HtNLYu/UlIQ2lYf5Fdt09OAM2gFCLnvhkIXFDBFE3j0LEIZWGwvGe', 'ACTIVE'),
+(2, 'Manager User', 'manager', 'manager@f4.com', '$2a$12$HtNLYu/UlIQ2lYf5Fdt09OAM2gFCLnvhkIXFDBFE3j0LEIZWGwvGe', 'ACTIVE');
+
+-- Warehouses
+INSERT INTO warehouses (name, address, capacity) VALUES
+('Warehouse North', 'Address 1', 1500),
+('Warehouse South', 'Address 2', 2000),
+('Warehouse East', 'Address 3', 2500),
+('Warehouse West', 'Address 4', 3000),
+('Warehouse Central', 'Address 5', 3500);
+
+-- User assignment to warehouses
+INSERT INTO user_warehouse (user_id, warehouse_id) VALUES
+(2, 1), (2, 2),
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5);
+
+-- Categories, supplier, customer
+INSERT INTO categories (name, parent_id) VALUES
+('Điện thoại', NULL),
+('Laptop', NULL),
+('Phụ kiện', NULL);
+
+INSERT INTO suppliers (company_name, phone, address, email) VALUES
+('Tech Corp', '123456789', 'Tech Street', 'contact@techcorp.com');
+
+INSERT INTO customers (full_name, phone, email, address, customer_type) VALUES
+('Retail Customer', '0900000001', 'retail@customer.com', 'Retail Address', 'RETAIL'),
+('Wholesale Customer', '0900000002', 'wholesale@customer.com', 'Wholesale Address', 'WHOLESALE');
+
+-- Products
+INSERT INTO products (category_id, name, sku, image_url, specifications) VALUES
+(1, 'Smartphone Model 1', 'TECH-PHONE-1', 'https://example.com/phone1.jpg', JSON_OBJECT('ram', '8GB', 'storage', '256GB', 'screen', '6.5 inch OLED', 'battery', '4500mAh')),
+(1, 'Smartphone Model 2', 'TECH-PHONE-2', 'https://example.com/phone2.jpg', JSON_OBJECT('ram', '12GB', 'storage', '512GB', 'screen', '6.7 inch OLED', 'battery', '5000mAh')),
+(2, 'Pro Laptop 1', 'TECH-LAP-1', 'https://example.com/laptop1.jpg', JSON_OBJECT('cpu', 'Intel Core i7', 'ram', '16GB', 'storage', '1TB SSD', 'screen', '15.6 inch IPS')),
+(3, 'Premium Headphone 1', 'TECH-ACC-1', 'https://example.com/acc1.jpg', JSON_OBJECT('type', 'Wireless', 'batteryLife', '20 hours', 'noiseCancellation', TRUE));
+
+-- Inventory per warehouse/product/status
+INSERT INTO inventory (warehouse_id, product_id, quantity, status) VALUES
+(1, 1, 20, 'READY_TO_SELL'),
+(1, 1, 2, 'DEFECTIVE'),
+(1, 2, 15, 'READY_TO_SELL'),
+(1, 3, 10, 'READY_TO_SELL'),
+(2, 1, 12, 'READY_TO_SELL'),
+(2, 2, 8, 'READY_TO_SELL'),
+(2, 4, 25, 'READY_TO_SELL'),
+(3, 3, 7, 'READY_TO_SELL'),
+(4, 4, 5, 'IN_TRANSIT'),
+(5, 1, 3, 'IN_TRANSIT');
+
+-- IMEI/Serial sample items
+INSERT INTO product_items (product_id, warehouse_id, imei_serial, status) VALUES
+(1, 1, 'IMEI-1-1-001', 'IN_STOCK'),
+(1, 1, 'IMEI-1-1-002', 'IN_STOCK'),
+(1, 1, 'IMEI-1-1-003', 'IN_STOCK'),
+(2, 1, 'IMEI-2-1-001', 'IN_STOCK'),
+(2, 2, 'IMEI-2-2-001', 'IN_STOCK'),
+(3, 1, 'IMEI-3-1-001', 'IN_STOCK'),
+(4, 2, 'IMEI-4-2-001', 'IN_STOCK');
+
+-- Transactions and details
+INSERT INTO transactions (
+    code, type, status, created_by, source_warehouse_id, dest_warehouse_id, supplier_id, customer_id, confirmed_by, confirmed_at, total_amount
+) VALUES
+('INB-001', 'INBOUND', 'COMPLETED', 1, NULL, 1, 1, NULL, 1, NOW(), 4500.00),
+('OUT-001', 'OUTBOUND', 'COMPLETED', 1, 2, NULL, NULL, 1, 1, NOW(), 4000.00);
+
+INSERT INTO transaction_details (transaction_id, product_id, quantity, unit_price) VALUES
+(1, 1, 3, 1500.00),
+(2, 2, 2, 2000.00);
+
+INSERT INTO transaction_imei (transaction_detail_id, product_item_id) VALUES
+(1, 1),
+(1, 2),
+(1, 3),
+(2, 4),
+(2, 5);
