@@ -12,15 +12,15 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback, createContext, useContext } from 'react'
-import { Link } from 'react-router-dom'
 import { 
   Plus, Search, Filter, Box, AlertCircle, Edit2, Trash2, Home, BarChart2, CheckCircle2, 
-  Package, LayoutDashboard, Warehouse, Settings, X, ChevronRight, Download, Eye, Truck, 
-  PackageSearch, Smartphone, Camera, Headphones, Loader, Battery, Monitor, Cpu, ChevronDown, 
-  Check, Zap, ArrowDownToLine, Printer, Users, ScanLine, HardDrive, Tag, Laptop, Edit3, Loader2, RefreshCw 
+  Package, X, ChevronRight, Download, Eye, 
+  Smartphone, Camera, Headphones, Loader, Battery, Monitor, Cpu, ChevronDown, 
+  Check, Zap, ArrowDownToLine, Printer, ScanLine, HardDrive, Tag, Laptop, Edit3, Loader2, RefreshCw 
 } from 'lucide-react'
 
 import Header from '../components/common/Header'
+import AppSidebar from '../components/common/AppSidebar'
 
 import {
   productApiService,
@@ -106,11 +106,11 @@ function mapApiProductToUI(p: ApiProduct): UIProduct {
   }
 
   const cardBgMap: Record<string, string> = {
-    'Điện thoại': 'bg-pink-clay/45',
-    'Phone': 'bg-pink-clay/45',
-    'Laptop': 'bg-mint-clay/40',
-    'Phụ kiện': 'bg-lilac-clay/40',
-    'Accessory': 'bg-lilac-clay/40',
+    'Điện thoại': 'bg-sky-50',
+    'Phone': 'bg-sky-50',
+    'Laptop': 'bg-primary/10',
+    'Phụ kiện': 'bg-violet-50',
+    'Accessory': 'bg-violet-50',
   }
 
   const iconColorMap: Record<string, string> = {
@@ -129,7 +129,7 @@ function mapApiProductToUI(p: ApiProduct): UIProduct {
     specs: (p.specifications as ProductSpec) ?? {},
     iconType: iconTypeMap[categoryName] ?? 'accessory',
     iconColor: iconColorMap[categoryName] ?? 'text-slate-600',
-    cardBg: cardBgMap[categoryName] ?? 'bg-sky-clay/40',
+    cardBg: cardBgMap[categoryName] ?? 'bg-slate-100',
     categoryId: p.category?.id ?? null,
     imageUrl: p.image_url,
   }
@@ -183,9 +183,9 @@ const CARD_SPEC_KEYS: Record<string, string[]> = {
 // ─────────────────────────────────────────────
 function ProductIcon({ type, className }: { type: UIProduct['iconType']; className?: string }) {
   const base = cn('w-14 h-14', className)
-  if (type === 'phone') return <Smartphone className={cn(base, 'animate-float-slow')} strokeWidth={1.4} />
-  if (type === 'laptop') return <Laptop className={cn(base, 'animate-float')} strokeWidth={1.4} />
-  return <Headphones className={cn(base, 'animate-float-delayed')} strokeWidth={1.4} />
+  if (type === 'phone') return <Smartphone className={base} strokeWidth={1.4} />
+  if (type === 'laptop') return <Laptop className={base} strokeWidth={1.4} />
+  return <Headphones className={base} strokeWidth={1.4} />
 }
 
 // ─────────────────────────────────────────────
@@ -193,16 +193,13 @@ function ProductIcon({ type, className }: { type: UIProduct['iconType']; classNa
 // ─────────────────────────────────────────────
 function StatusBadge({ status }: { status: StockStatus }) {
   const map: Record<StockStatus, { label: string; cls: string }> = {
-    READY_TO_SELL: { label: '✦ Sẵn sàng bán', cls: 'bg-mint-clay text-emerald-800' },
-    DEFECTIVE: { label: '✕ Hỏng hóc', cls: 'bg-pink-clay text-rose-800' },
-    IN_TRANSIT: { label: '→ Đang luân chuyển', cls: 'bg-lilac-clay text-purple-800' },
+    READY_TO_SELL: { label: '✦ Sẵn sàng bán', cls: 'bg-emerald-50 text-emerald-800 border border-emerald-100' },
+    DEFECTIVE: { label: '✕ Hỏng hóc', cls: 'bg-red-50 text-red-800 border border-red-100' },
+    IN_TRANSIT: { label: '→ Đang luân chuyển', cls: 'bg-violet-50 text-violet-800 border border-violet-100' },
   }
   const { label, cls } = map[status]
   return (
-    <span
-      className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide', cls)}
-      style={{ boxShadow: '-2px -2px 5px rgba(255,255,255,0.8), 2px 3px 8px rgba(17,24,39,0.09)' }}
-    >
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide border border-border-soft/60', cls)}>
       {label}
     </span>
   )
@@ -213,10 +210,7 @@ function StatusBadge({ status }: { status: StockStatus }) {
 // ─────────────────────────────────────────────
 function SpecTag({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
   return (
-    <div
-      className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-semibold text-slate-700', color)}
-      style={{ boxShadow: '-2px -2px 5px rgba(255,255,255,0.85), 2px 3px 7px rgba(17,24,39,0.08)' }}
-    >
+    <div className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-semibold text-slate-700 border border-border-soft/50', color)}>
       {icon}
       <span className="opacity-60">{label}:</span>
       <span className="font-bold">{value}</span>
@@ -232,7 +226,7 @@ function ProductCard({ product, onEdit, onDelete }: {
   onEdit: (p: UIProduct) => void
   onDelete: (id: number) => void
 }) {
-  const specColors = ['bg-mint-clay/70', 'bg-lilac-clay/70', 'bg-pink-clay/60', 'bg-sky-clay/70', 'bg-peach-clay/60']
+  const specColors = ['bg-primary/15', 'bg-violet-100', 'bg-sky-100', 'bg-slate-200', 'bg-amber-100']
   const cardSpecKeys = CARD_SPEC_KEYS[product.category] ?? []
   const specEntries = cardSpecKeys
     .map((key) => ({ key, value: product.specs[key] }))
@@ -243,25 +237,21 @@ function ProductCard({ product, onEdit, onDelete }: {
 
   return (
     <div
-      className={cn('clay-product-card rounded-card2 p-5 flex flex-col gap-4 relative overflow-hidden group', product.cardBg)}
-      style={{
-        boxShadow:
-          '-10px -10px 24px rgba(255,255,255,0.92), 14px 18px 36px rgba(17,24,39,0.11), inset 0px 1px 0px rgba(255,255,255,0.88)',
-      }}
+      className={cn('apple-product-card rounded-card border border-border-soft p-5 flex flex-col gap-4 relative overflow-hidden group bg-white shadow-apple-md', product.cardBg)}
     >
       <div className="absolute top-4 right-4 flex gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
+          type="button"
           onClick={() => onEdit(product)}
-          className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center transition-all active:scale-95 hover:scale-110"
-          style={{ boxShadow: '-3px -3px 7px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.10)' }}
+          className="w-7 h-7 rounded-full bg-white border border-border-soft flex items-center justify-center transition-all active:opacity-80 hover:bg-slate-50 shadow-apple-sm"
           title="Sửa"
         >
           <Edit3 className="w-3.5 h-3.5 text-slate-600" />
         </button>
         <button
+          type="button"
           onClick={() => onDelete(product.id)}
-          className="w-7 h-7 rounded-full bg-pink-clay/80 flex items-center justify-center transition-all active:scale-95 hover:scale-110"
-          style={{ boxShadow: '-3px -3px 7px rgba(255,255,255,0.9), 3px 4px 10px rgba(17,24,39,0.10)' }}
+          className="w-7 h-7 rounded-full bg-red-50 border border-red-100 flex items-center justify-center transition-all active:opacity-80 shadow-apple-sm"
           title="Xóa"
         >
           <Trash2 className="w-3.5 h-3.5 text-rose-700" />
@@ -269,10 +259,7 @@ function ProductCard({ product, onEdit, onDelete }: {
       </div>
 
       <div className="flex items-start justify-between gap-2">
-        <div
-          className="w-[72px] h-[72px] rounded-2xl bg-white/50 flex items-center justify-center shrink-0"
-          style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.85), 8px 10px 22px rgba(17,24,39,0.09), inset 0 1px 0 rgba(255,255,255,0.7)' }}
-        >
+        <div className="w-[72px] h-[72px] rounded-xl bg-slate-50 border border-border-soft flex items-center justify-center shrink-0">
           <ProductIcon type={product.iconType} className={product.iconColor} />
         </div>
 
@@ -290,7 +277,7 @@ function ProductCard({ product, onEdit, onDelete }: {
       </div>
 
       <div>
-        <p className="text-[15px] font-bold text-slate-900 leading-tight line-clamp-2">{product.name}</p>
+        <p className="text-[15px] font-semibold tracking-tight text-slate-900 leading-snug line-clamp-2">{product.name}</p>
         <p className="text-[11px] text-slate-500 mt-0.5 font-mono tracking-wide">SKU: {product.sku}</p>
       </div>
 
@@ -325,50 +312,22 @@ function StatCard({ label, value, sub, color, icon, loading }: {
   label: string; value: number | string; sub: string; color: string; icon: React.ReactNode; loading?: boolean
 }) {
   return (
-    <div
-      className={cn('rounded-card2 p-5 flex flex-col gap-3', color)}
-      style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.92), 12px 16px 32px rgba(17,24,39,0.10), inset 0px 1px 0px rgba(255,255,255,0.88)' }}
-    >
+    <div className={cn('rounded-card border border-border-soft p-5 flex flex-col gap-3 bg-white shadow-apple-md', color)}>
       <div className="flex items-center justify-between">
-        <div
-          className="w-10 h-10 rounded-2xl bg-white/60 flex items-center justify-center"
-          style={{ boxShadow: '-3px -3px 8px rgba(255,255,255,0.85), 4px 5px 12px rgba(17,24,39,0.09)' }}
-        >
+        <div className="w-10 h-10 rounded-xl bg-slate-50 border border-border-soft flex items-center justify-center">
           {icon}
         </div>
         {loading ? (
           <Loader2 className="w-7 h-7 text-slate-400 animate-spin" />
         ) : (
-          <p className="text-[30px] font-bold text-slate-900 leading-none">{value}</p>
+          <p className="text-[30px] font-semibold tabular-nums font-mono text-slate-900 leading-none">{value}</p>
         )}
       </div>
       <div>
-        <p className="text-[14px] font-bold text-slate-900">{label}</p>
-        <p className="text-[11px] text-slate-600 mt-0.5">{sub}</p>
+        <p className="text-[14px] font-semibold tracking-tight text-slate-900">{label}</p>
+        <p className="text-[11px] text-slate-600 mt-0.5 font-normal leading-relaxed">{sub}</p>
       </div>
     </div>
-  )
-}
-
-// ─────────────────────────────────────────────
-// NavIcon
-// ─────────────────────────────────────────────
-function NavIcon({ active, label, children }: { active?: boolean; label: string; children: React.ReactNode }) {
-  return (
-    <button
-      aria-label={label}
-      className={cn(
-        'w-11 h-11 rounded-2xl flex items-center justify-center transition-all active:scale-95',
-        active ? 'bg-mint-clay text-slate-800' : 'bg-cream-bg text-slate-500 hover:text-slate-700',
-      )}
-      style={{
-        boxShadow: active
-          ? '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.12), inset 0px 1px 0px rgba(255,255,255,0.8)'
-          : '-3px -3px 8px rgba(255,255,255,0.9), 4px 6px 14px rgba(17,24,39,0.08)',
-      }}
-    >
-      {children}
-    </button>
   )
 }
 
@@ -378,16 +337,12 @@ function NavIcon({ active, label, children }: { active?: boolean; label: string;
 function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        'h-9 rounded-full px-5 text-[13px] font-semibold transition-all active:scale-95',
-        active ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:text-slate-900 hover:-translate-y-0.5',
+        'h-9 rounded-full px-5 text-[13px] font-semibold transition-all border border-border-soft active:opacity-90 active:scale-[0.98]',
+        active ? 'bg-slate-900 text-white shadow-apple-sm' : 'bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-apple-sm',
       )}
-      style={{
-        boxShadow: active
-          ? '0 4px 14px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.15)'
-          : '-5px -5px 12px rgba(255,255,255,0.95), 8px 10px 22px rgba(17,24,39,0.09)',
-      }}
     >
       {label}
     </button>
@@ -398,7 +353,6 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
 // H4 Fix: Clay Input — Inner Shadow theo Guideline
 // Guideline: inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)
 // ─────────────────────────────────────────────
-const CLAY_INNER_SHADOW = 'inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)'
 
 function ClayInput({ label, value, onChange, placeholder, type = 'text', required }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean
@@ -413,8 +367,7 @@ function ClayInput({ label, value, onChange, placeholder, type = 'text', require
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-2xl bg-cream-bg px-4 py-3 text-[14px] font-medium text-slate-800 outline-none placeholder:text-slate-400 font-fredoka transition-shadow focus:ring-2 focus:ring-mint-clay/50"
-        style={{ boxShadow: CLAY_INNER_SHADOW }}
+        className="w-full rounded-xl bg-white border border-border-soft px-4 py-3 text-[14px] font-normal text-slate-800 outline-none placeholder:text-slate-500 transition-shadow focus:ring-2 focus:ring-primary/40 shadow-apple-inset"
       />
     </div>
   )
@@ -439,8 +392,7 @@ function ClaySelect<T extends string | number>({ label, value, onChange, options
             const raw = e.target.value
             onChange((typeof value === 'number' ? Number(raw) : raw) as T)
           }}
-          className="w-full rounded-2xl bg-cream-bg px-4 py-3 text-[14px] font-medium text-slate-800 outline-none font-fredoka appearance-none cursor-pointer transition-all focus:ring-2 focus:ring-mint-clay/50 pr-10 hover:bg-white"
-          style={{ boxShadow: CLAY_INNER_SHADOW }}
+          className="w-full rounded-xl bg-white border border-border-soft px-4 py-3 text-[14px] font-normal text-slate-800 outline-none appearance-none cursor-pointer transition-all focus:ring-2 focus:ring-primary/40 pr-10 hover:bg-slate-50 shadow-apple-inset"
         >
           {options.map((o) => (
             <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
@@ -488,10 +440,7 @@ function Modal({ children, onClose, saving }: {
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
       >
         <div
-          className="modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-card bg-cream-bg"
-          style={{
-            boxShadow: '-18px -18px 44px rgba(255,255,255,0.96), 28px 36px 72px rgba(17,24,39,0.16), inset 8px 8px 12px rgba(255,255,255,0.5), inset -8px -8px 12px rgba(0,0,0,0.05)',
-          }}
+          className="modal-panel w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[20px] border border-border-soft bg-white shadow-apple-lg"
         >
           {children}
         </div>
@@ -506,12 +455,12 @@ function ModalHeader({ title, subtitle }: { title: string; subtitle?: string }) 
     <div className="flex items-center justify-between p-6 pb-0">
       <div>
         {subtitle && <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{subtitle}</p>}
-        <h2 className="text-[20px] font-bold text-slate-900">{title}</h2>
+        <h2 className="text-[20px] font-semibold tracking-tight text-slate-900">{title}</h2>
       </div>
       <button
+        type="button"
         onClick={onClose}
-        className="w-9 h-9 rounded-full bg-white flex items-center justify-center transition-all active:scale-95 hover:bg-pink-clay/40"
-        style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 5px 6px 14px rgba(17,24,39,0.09)' }}
+        className="w-9 h-9 rounded-full bg-white border border-border-soft flex items-center justify-center transition-all active:opacity-80 hover:bg-slate-50 shadow-apple-sm"
       >
         <X className="w-4 h-4 text-slate-600" />
       </button>
@@ -536,18 +485,18 @@ function ModalFooter({ onSave, saveLabel = '✦ Thêm sản phẩm', cancelLabel
   return (
     <div className="flex gap-3 px-6 pb-6">
       <button
+        type="button"
         onClick={onClose}
         disabled={saving}
-        className="flex-1 h-11 rounded-full bg-white text-[14px] font-semibold text-slate-600 transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-50"
-        style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.95), 8px 10px 22px rgba(17,24,39,0.09)' }}
+        className="flex-1 h-11 rounded-full bg-white border border-border-soft text-[14px] font-semibold text-slate-600 transition-all active:opacity-80 hover:bg-slate-50 disabled:opacity-50 shadow-apple-sm"
       >
         {cancelLabel}
       </button>
       <button
+        type="button"
         onClick={onSave}
         disabled={saving}
-        className="flex-1 h-11 rounded-full bg-mint-clay text-[14px] font-bold text-slate-800 transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ boxShadow: '-5px -5px 12px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.13), 0 2px 8px rgba(178,242,187,0.5)' }}
+        className="flex-1 h-11 rounded-full bg-primary text-[14px] font-bold text-white transition-all active:opacity-90 hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2 shadow-apple-sm"
       >
         {saving && <Loader2 className="w-4 h-4 animate-spin" />}
         {saving ? 'Đang lưu...' : saveLabel}
@@ -624,10 +573,7 @@ function ClayModal({ state, formOptions, onClose, onSave, saving }: {
         </div>
 
         {/* Dynamic JSON Spec Fields (Strategy Pattern) */}
-        <div
-          className="rounded-card2 p-4 bg-white/50"
-          style={{ boxShadow: CLAY_INNER_SHADOW }}
-        >
+        <div className="rounded-card border border-border-soft p-4 bg-slate-50/80 shadow-apple-inset">
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">
             📋 Thông số kỹ thuật — {categoryName}
           </p>
@@ -662,13 +608,9 @@ function DeleteModal({ productName, onClose, onConfirm, deleting }: {
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       <div
-        className="modal-panel w-full max-w-sm rounded-card bg-cream-bg p-8 flex flex-col items-center gap-5 text-center"
-        style={{ boxShadow: '-18px -18px 44px rgba(255,255,255,0.96), 28px 36px 72px rgba(17,24,39,0.16)' }}
+        className="modal-panel w-full max-w-sm rounded-[20px] border border-border-soft bg-white p-8 flex flex-col items-center gap-5 text-center shadow-apple-lg"
       >
-        <div
-          className="w-16 h-16 rounded-card2 bg-pink-clay/60 flex items-center justify-center"
-          style={{ boxShadow: '-6px -6px 14px rgba(255,255,255,0.9), 8px 10px 22px rgba(17,24,39,0.10)' }}
-        >
+        <div className="w-16 h-16 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shadow-apple-sm">
           <Trash2 className="w-7 h-7 text-rose-600" />
         </div>
         <div>
@@ -679,18 +621,18 @@ function DeleteModal({ productName, onClose, onConfirm, deleting }: {
         </div>
         <div className="flex gap-3 w-full">
           <button
+            type="button"
             onClick={onClose}
             disabled={deleting}
-            className="flex-1 h-10 rounded-full bg-white text-[13px] font-semibold text-slate-600 transition-all active:scale-95 disabled:opacity-50"
-            style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.95), 6px 8px 18px rgba(17,24,39,0.09)' }}
+            className="flex-1 h-10 rounded-full bg-white border border-border-soft text-[13px] font-semibold text-slate-600 transition-all active:opacity-80 disabled:opacity-50 shadow-apple-sm"
           >
             Giữ lại
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={deleting}
-            className="flex-1 h-10 rounded-full bg-rose-400 text-[13px] font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60"
-            style={{ boxShadow: '0 4px 14px rgba(251,113,133,0.4)' }}
+            className="flex-1 h-10 rounded-full bg-rose-500 text-[13px] font-bold text-white transition-all active:opacity-90 flex items-center justify-center gap-2 disabled:opacity-60 shadow-apple-sm"
           >
             {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {deleting ? 'Đang xóa...' : 'Xóa ngay'}
@@ -714,10 +656,9 @@ function Toast({ message, type, onClose }: { message: string; type: ToastType; o
   return (
     <div
       className={cn(
-        'fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-2xl px-5 py-4 text-[14px] font-semibold shadow-2xl transition-all animate-slide-up',
-        type === 'success' ? 'bg-mint-clay text-emerald-900' : 'bg-pink-clay text-rose-900',
+        'fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl px-5 py-4 text-[14px] font-semibold transition-all animate-slide-up shadow-apple-lg',
+        type === 'success' ? 'bg-emerald-50 text-emerald-900 border border-emerald-100' : 'bg-red-50 text-red-900 border border-red-100',
       )}
-      style={{ boxShadow: '0 8px 32px rgba(17,24,39,0.18)' }}
     >
       {type === 'success' ? '✦' : '✕'} {message}
       <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100">
@@ -780,46 +721,21 @@ function ProductManagementView({
   }, [products, searchQuery])
 
   return (
-    <div className="min-h-screen font-fredoka" style={{ backgroundColor: '#FDFBF7' }}>
+    <div className="min-h-screen bg-surface-app">
       <div className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="flex gap-6">
 
-          {/* ── Sidebar ─────────────────────────── */}
-          <aside className="shrink-0">
-            <div
-              className="w-[72px] rounded-[36px] bg-cream-bg px-3 py-5 flex flex-col items-center gap-5"
-              style={{ boxShadow: '-8px -8px 20px rgba(255,255,255,0.95), 12px 16px 36px rgba(17,24,39,0.10)' }}
-            >
-              <Link
-                to="/"
-                className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mint-clay to-emerald-300 flex items-center justify-center font-bold text-slate-800 text-sm active:scale-95 transition-transform"
-                style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.14)' }}
-              >
-                F4
-              </Link>
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <Link to="/"><NavIcon label="Dashboard"><LayoutDashboard className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/operations"><NavIcon label="Kho hàng"><Warehouse className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/products"><NavIcon label="Sản phẩm" active><Package className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/confirmation"><NavIcon label="Vận chuyển"><Truck className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/trace"><NavIcon label="Tìm kiếm"><PackageSearch className="w-5 h-5" /></NavIcon></Link>
-              <Link to="/partners"><NavIcon label="Đối tác"><Users className="w-5 h-5" /></NavIcon></Link>
-              <div className="flex-1" />
-              <div className="w-full h-px bg-slate-200/60 rounded-full" />
-              <NavIcon label="Cài đặt"><Settings className="w-5 h-5" /></NavIcon>
-            </div>
-          </aside>
+          <AppSidebar />
 
           {/* ── Main Content ─────────────────── */}
           <main className="flex-1 min-w-0">
 
-            {/* Unified Top Header — Claymorphism Edition */}
             <Header
               title="Quản lý Sản phẩm"
               subtitle={
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-emerald-600 bg-mint-clay/50 px-3 py-0.5 rounded-full font-bold shadow-sm">
+                    <span className="text-emerald-700 bg-emerald-50 px-3 py-0.5 rounded-full font-bold shadow-sm border border-emerald-100">
                       {stats ? `${stats.total_models} Models` : '—'}
                     </span>
                     <span className="text-slate-400">·</span>
@@ -829,7 +745,7 @@ function ProductManagementView({
                   </div>
                   <div className="flex items-center gap-2">
                      <span className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">Tại kho:</span>
-                     <span className="font-bold text-emerald-600 bg-mint-clay/40 px-2 py-0.5 rounded-full text-[12px]">
+                     <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[12px] border border-emerald-100">
                        {selectedWarehouseId === null ? 'Tất cả chi nhánh' : (availableWarehouses.find(w => w.id === selectedWarehouseId)?.name || 'Đang tải...')}
                      </span>
                   </div>
@@ -866,7 +782,7 @@ function ProductManagementView({
                 label="Điện thoại"
                 value={stats?.phones.model_count ?? 0}
                 sub={`${stats?.phones.total_quantity ?? 0} máy tồn · ${stats?.phones.sold_count ?? 0} đã bán`}
-                color="bg-pink-clay/30"
+                color="bg-sky-100/80"
                 icon={<Smartphone className="w-5 h-5 text-rose-500" />}
                 loading={loadingStats}
               />
@@ -874,7 +790,7 @@ function ProductManagementView({
                 label="Laptop"
                 value={stats?.laptops.model_count ?? 0}
                 sub={`${stats?.laptops.total_quantity ?? 0} máy tồn · ${stats?.laptops.sold_count ?? 0} đã bán`}
-                color="bg-mint-clay/30"
+                color="bg-primary/10"
                 icon={<Laptop className="w-5 h-5 text-emerald-600" />}
                 loading={loadingStats}
               />
@@ -882,7 +798,7 @@ function ProductManagementView({
                 label="Phụ kiện"
                 value={stats?.accessories.model_count ?? 0}
                 sub={`${stats?.accessories.total_quantity ?? 0} tồn · ${stats?.accessories.sold_count ?? 0} đã bán`}
-                color="bg-peach-clay/30"
+                color="bg-amber-100/80"
                 icon={<Headphones className="w-5 h-5 text-orange-500" />}
                 loading={loadingStats}
               />
@@ -906,7 +822,7 @@ function ProductManagementView({
 
             {/* ── Error Banner ── */}
             {error && (
-              <div className="flex items-center gap-3 rounded-2xl bg-pink-clay/40 px-5 py-4 mb-6 text-rose-800 text-[13px] font-semibold">
+              <div className="flex items-center gap-3 rounded-2xl bg-red-50 border border-red-100 px-5 py-4 mb-6 text-red-800 text-[13px] font-semibold">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 {error}
                 <button onClick={onRefresh} className="ml-auto underline">Thử lại</button>
@@ -928,9 +844,9 @@ function ProductManagementView({
                   {error ? 'Không thể tải dữ liệu' : 'Không có sản phẩm nào'}
                 </p>
                 <button
+                  type="button"
                   onClick={onOpenAdd}
-                  className="h-10 rounded-full px-5 text-[13px] font-bold bg-mint-clay text-slate-800 inline-flex items-center gap-2"
-                  style={{ boxShadow: '-4px -4px 10px rgba(255,255,255,0.9), 6px 8px 18px rgba(17,24,39,0.10)' }}
+                  className="h-10 rounded-full px-5 text-[13px] font-bold bg-primary text-white inline-flex items-center gap-2 shadow-apple-sm active:opacity-90"
                 >
                   <Plus className="w-4 h-4" />
                   Thêm sản phẩm đầu tiên
