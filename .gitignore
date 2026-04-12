@@ -6,6 +6,11 @@ node_modules
 # Testing
 coverage
 
+# Cypress
+client/cypress/videos
+client/cypress/screenshots
+client/cypress/downloads
+
 # Production
 build
 dist
